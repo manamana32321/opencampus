@@ -251,6 +251,75 @@ def get_activity_stream() -> list[dict]:
     return get_client().get_activity_stream()
 
 
+# ── 플래너 ──────────────────────────────────────
+
+@mcp.tool()
+def get_planner_items(start_date: str = "", end_date: str = "", limit: int = 50) -> list[dict]:
+    """Canvas Planner 아이템 (과제/퀴즈/토론/이벤트 통합 뷰). 날짜: YYYY-MM-DD."""
+    return get_client().get_planner_items(
+        start_date=start_date or None,
+        end_date=end_date or None,
+        limit=limit,
+    )
+
+
+@mcp.tool()
+def update_planner_override(plannable_type: str, plannable_id: int, marked_complete: bool) -> dict:
+    """플래너 아이템 완료/미완료 토글. plannable_type: assignment, quiz, discussion_topic 등."""
+    return get_client().update_planner_override(plannable_type, plannable_id, marked_complete)
+
+
+# ── 루브릭 ──────────────────────────────────────
+
+@mcp.tool()
+def get_rubrics(course_id: int, limit: int = 50) -> list[dict]:
+    """과목 루브릭 목록."""
+    return get_client().get_rubrics(course_id, limit=limit)
+
+
+@mcp.tool()
+def get_rubric(course_id: int, rubric_id: int) -> dict:
+    """루브릭 상세 (채점 기준, 배점, 등급 설명)."""
+    return get_client().get_rubric(course_id, rubric_id)
+
+
+# ── 북마크 ──────────────────────────────────────
+
+@mcp.tool()
+def get_bookmarks() -> list[dict]:
+    """사용자 북마크 목록."""
+    return get_client().get_bookmarks()
+
+
+@mcp.tool()
+def create_bookmark(name: str, url: str, position: int = 0) -> dict:
+    """새 북마크 생성."""
+    pos = position if position > 0 else None
+    return get_client().create_bookmark(name, url, position=pos)
+
+
+@mcp.tool()
+def delete_bookmark(bookmark_id: int) -> dict:
+    """북마크 삭제."""
+    return get_client().delete_bookmark(bookmark_id)
+
+
+# ── 알림 설정 ──────────────────────────────────
+
+@mcp.tool()
+def get_notification_preferences() -> list[dict]:
+    """알림 설정 목록 (이메일 알림 빈도)."""
+    return get_client().get_notification_preferences()
+
+
+# ── 피어 리뷰 ──────────────────────────────────
+
+@mcp.tool()
+def get_peer_reviews(course_id: int, assignment_id: int) -> list[dict]:
+    """과제의 피어 리뷰 목록 (리뷰어, 상태)."""
+    return get_client().get_peer_reviews(course_id, assignment_id)
+
+
 # ── 강의 영상 (LearningX/LCMS) ──────────────────
 
 @mcp.tool()

@@ -35,6 +35,15 @@
 | `get_course_users` | 과목 수강생/교수 목록 |
 | `get_favorites` | 즐겨찾기 과목 |
 | `get_activity_stream` | 최근 활동 요약 |
+| `get_planner_items` | 플래너 통합 뷰 (과제/퀴즈/토론/이벤트) |
+| `update_planner_override` | 플래너 아이템 완료/미완료 토글 |
+| `get_rubrics` | 과목 루브릭 목록 |
+| `get_rubric` | 루브릭 상세 (채점 기준/배점) |
+| `get_bookmarks` | 사용자 북마크 목록 |
+| `create_bookmark` | 새 북마크 생성 |
+| `delete_bookmark` | 북마크 삭제 |
+| `get_notification_preferences` | 알림 설정 목록 |
+| `get_peer_reviews` | 과제 피어 리뷰 목록 |
 | `get_attendance_items` | 강의 영상 목록 (LearningX) |
 | `get_video_url` | 강의 영상 MP4 URL 추출 |
 | `download_video` | 강의 영상 다운로드 |

@@ -541,3 +541,150 @@ class CanvasClient:
                 "notification_category": a.get("notification_category", ""),
             })
         return items
+
+    # ── 플래너 ──────────────────────────────────────────
+
+    def get_planner_items(self, start_date=None, end_date=None, limit=50):
+        """Canvas Planner 아이템 (과제/퀴즈/토론/이벤트 통합 뷰)."""
+        params = {"per_page": min(limit, 100)}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        resp = self.canvas._Canvas__requester.request("GET", "planner/items", **params)
+        items = []
+        for item in resp.json():
+            plannable = item.get("plannable", {})
+            items.append({
+                "id": item.get("plannable_id"),
+                "title": plannable.get("title", item.get("plannable_type", "")),
+                "type": item.get("plannable_type", ""),
+                "course_id": item.get("course_id"),
+                "due_at": plannable.get("due_at", ""),
+                "points_possible": plannable.get("points_possible"),
+                "completed": item.get("planner_override", {}).get("marked_complete", False) if item.get("planner_override") else False,
+                "submissions": item.get("submissions", {}),
+            })
+            if len(items) >= limit:
+                break
+        return items
+
+    def update_planner_override(self, plannable_type, plannable_id, marked_complete):
+        """플래너 아이템 완료/미완료 토글."""
+        # 기존 override 찾기 시도
+        try:
+            resp = self.canvas._Canvas__requester.request(
+                "PUT", f"planner/overrides/{plannable_id}",
+                marked_complete=marked_complete,
+            )
+            return resp.json()
+        except Exception:
+            resp = self.canvas._Canvas__requester.request(
+                "POST", "planner/overrides",
+                plannable_type=plannable_type,
+                plannable_id=plannable_id,
+                marked_complete=marked_complete,
+            )
+            return resp.json()
+
+    # ── 루브릭 ──────────────────────────────────────────
+
+    def get_rubrics(self, course_id, limit=50):
+        """과목 루브릭 목록."""
+        resp = self.canvas._Canvas__requester.request(
+            "GET", f"courses/{course_id}/rubrics", per_page=min(limit, 100),
+        )
+        rubrics = []
+        for r in resp.json():
+            rubrics.append({
+                "id": r.get("id"),
+                "title": r.get("title", ""),
+                "points_possible": r.get("points_possible"),
+                "criteria_count": len(r.get("data", [])),
+            })
+            if len(rubrics) >= limit:
+                break
+        return rubrics
+
+    def get_rubric(self, course_id, rubric_id):
+        """루브릭 상세 (기준 항목, 배점, 설명 포함)."""
+        resp = self.canvas._Canvas__requester.request(
+            "GET", f"courses/{course_id}/rubrics/{rubric_id}",
+            include="assessments",
+            style="full",
+        )
+        data = resp.json()
+        criteria = []
+        for c in data.get("data", []):
+            ratings = [{"description": rt.get("description", ""), "points": rt.get("points", 0)}
+                       for rt in c.get("ratings", [])]
+            criteria.append({
+                "id": c.get("id"),
+                "description": c.get("description", ""),
+                "long_description": c.get("long_description", ""),
+                "points": c.get("points", 0),
+                "ratings": ratings,
+            })
+        return {
+            "id": data.get("id"),
+            "title": data.get("title", ""),
+            "points_possible": data.get("points_possible"),
+            "criteria": criteria,
+        }
+
+    # ── 북마크 ──────────────────────────────────────────
+
+    def get_bookmarks(self):
+        """사용자 북마크 목록."""
+        resp = self.canvas._Canvas__requester.request("GET", "users/self/bookmarks")
+        bookmarks = []
+        for b in resp.json():
+            bookmarks.append({
+                "id": b.get("id"),
+                "name": b.get("name", ""),
+                "url": b.get("url", ""),
+                "position": b.get("position", 0),
+            })
+        return bookmarks
+
+    def create_bookmark(self, name, url, position=None):
+        """새 북마크 생성."""
+        params = {"name": name, "url": url}
+        if position is not None:
+            params["position"] = position
+        resp = self.canvas._Canvas__requester.request("POST", "users/self/bookmarks", **params)
+        return resp.json()
+
+    def delete_bookmark(self, bookmark_id):
+        """북마크 삭제."""
+        self.canvas._Canvas__requester.request("DELETE", f"users/self/bookmarks/{bookmark_id}")
+        return {"deleted": True}
+
+    # ── 알림 설정 ──────────────────────────────────────
+
+    def get_notification_preferences(self):
+        """알림 설정 목록."""
+        resp = self.canvas._Canvas__requester.request(
+            "GET", "users/self/communication_channels/email/self/notification_preferences",
+        )
+        prefs = resp.json().get("notification_preferences", [])
+        return [{"notification": p.get("notification", ""), "frequency": p.get("frequency", "")}
+                for p in prefs]
+
+    # ── 피어 리뷰 ──────────────────────────────────────
+
+    def get_peer_reviews(self, course_id, assignment_id):
+        """과제의 피어 리뷰 목록."""
+        resp = self.canvas._Canvas__requester.request(
+            "GET", f"courses/{course_id}/assignments/{assignment_id}/peer_reviews",
+        )
+        reviews = []
+        for r in resp.json():
+            reviews.append({
+                "id": r.get("id"),
+                "user_id": r.get("user_id"),
+                "assessor_id": r.get("assessor_id"),
+                "asset_id": r.get("asset_id"),
+                "workflow_state": r.get("workflow_state", ""),
+            })
+        return reviews
