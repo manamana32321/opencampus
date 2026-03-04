@@ -161,6 +161,96 @@ def get_grading_periods(course_id: int) -> list[dict]:
     return get_client().get_grading_periods(course_id)
 
 
+# ── 받은편지함 ──────────────────────────────────
+
+@mcp.tool()
+def get_conversations(scope: str = "inbox", limit: int = 20) -> list[dict]:
+    """받은편지함 대화 목록. scope: inbox, sent, archived, starred."""
+    return get_client().get_conversations(scope=scope, limit=limit)
+
+
+@mcp.tool()
+def get_conversation(conversation_id: int) -> dict:
+    """특정 대화의 전체 메시지."""
+    return get_client().get_conversation(conversation_id)
+
+
+@mcp.tool()
+def send_conversation(recipients: list[int], body: str, subject: str = "", course_id: int = 0) -> dict:
+    """새 메시지 전송. recipients: 사용자 ID 리스트."""
+    cid = course_id if course_id > 0 else None
+    return get_client().send_conversation(recipients, body, subject=subject, course_id=cid)
+
+
+# ── 퀴즈 상세 ──────────────────────────────────
+
+@mcp.tool()
+def get_quiz_questions(course_id: int, quiz_id: int) -> list[dict]:
+    """퀴즈 문항 목록 (문항 유형, 배점, 선택지 포함)."""
+    return get_client().get_quiz_questions(course_id, quiz_id)
+
+
+@mcp.tool()
+def get_quiz_submissions(course_id: int, quiz_id: int) -> list[dict]:
+    """퀴즈 제출 기록 (점수, 시도 횟수, 소요 시간)."""
+    return get_client().get_quiz_submissions(course_id, quiz_id)
+
+
+# ── 과제 제출 ──────────────────────────────────
+
+@mcp.tool()
+def submit_assignment(course_id: int, assignment_id: int, submission_type: str, body: str = "", url: str = "", file_ids: list[int] = []) -> dict:
+    """과제 제출. submission_type: online_text_entry, online_url, online_upload."""
+    fids = file_ids if file_ids else None
+    return get_client().submit_assignment(course_id, assignment_id, submission_type, body=body, url=url, file_ids=fids)
+
+
+# ── 토론 댓글 ──────────────────────────────────
+
+@mcp.tool()
+def get_discussion_entries(course_id: int, topic_id: int, limit: int = 50) -> list[dict]:
+    """토론 게시글의 댓글(답글) 목록."""
+    return get_client().get_discussion_entries(course_id, topic_id, limit=limit)
+
+
+@mcp.tool()
+def post_discussion_entry(course_id: int, topic_id: int, message: str) -> dict:
+    """토론 게시글에 댓글 작성."""
+    return get_client().post_discussion_entry(course_id, topic_id, message)
+
+
+# ── 그룹 ──────────────────────────────────────
+
+@mcp.tool()
+def get_groups() -> list[dict]:
+    """내가 속한 그룹 목록."""
+    return get_client().get_groups()
+
+
+# ── 과목 사용자 ──────────────────────────────────
+
+@mcp.tool()
+def get_course_users(course_id: int, enrollment_type: str = "student", limit: int = 100) -> list[dict]:
+    """과목 수강생/교수 목록. enrollment_type: student, teacher, ta."""
+    return get_client().get_course_users(course_id, enrollment_type=enrollment_type, limit=limit)
+
+
+# ── 즐겨찾기 ──────────────────────────────────
+
+@mcp.tool()
+def get_favorites() -> list[dict]:
+    """즐겨찾기 과목 목록."""
+    return get_client().get_favorites()
+
+
+# ── 활동 스트림 ──────────────────────────────────
+
+@mcp.tool()
+def get_activity_stream() -> list[dict]:
+    """최근 활동 요약 (새 과제, 공지, 성적 등 카테고리별 개수)."""
+    return get_client().get_activity_stream()
+
+
 # ── 강의 영상 (LearningX/LCMS) ──────────────────
 
 @mcp.tool()

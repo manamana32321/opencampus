@@ -23,6 +23,18 @@
 | `get_pages` | 위키 페이지 목록 |
 | `get_page_content` | 위키 페이지 본문 |
 | `get_grading_periods` | 성적표 기간 |
+| `get_conversations` | 받은편지함 대화 목록 |
+| `get_conversation` | 대화 전체 메시지 |
+| `send_conversation` | 새 메시지 전송 |
+| `get_quiz_questions` | 퀴즈 문항 목록 |
+| `get_quiz_submissions` | 퀴즈 제출 기록 |
+| `submit_assignment` | 과제 제출 (텍스트/URL/파일) |
+| `get_discussion_entries` | 토론 댓글/답글 |
+| `post_discussion_entry` | 토론 댓글 작성 |
+| `get_groups` | 내 그룹 목록 |
+| `get_course_users` | 과목 수강생/교수 목록 |
+| `get_favorites` | 즐겨찾기 과목 |
+| `get_activity_stream` | 최근 활동 요약 |
 | `get_attendance_items` | 강의 영상 목록 (LearningX) |
 | `get_video_url` | 강의 영상 MP4 URL 추출 |
 | `download_video` | 강의 영상 다운로드 |
