@@ -1,14 +1,27 @@
-from datetime import datetime
-
 from auth import CanvasAuth
 
 
 class CanvasClient:
-    """Canvas LMS API 클라이언트 — 과목/과제/모듈/공지 조회."""
+    """Canvas LMS API 클라이언트 — 학생 관점 전체 기능."""
 
     def __init__(self, api_url=None, access_token=None):
         self.auth = CanvasAuth(api_url, access_token)
         self.canvas = self.auth.connect()
+
+    # ── 사용자 ──────────────────────────────────────────
+
+    def get_user_profile(self):
+        user = self.canvas.get_current_user()
+        profile = user.get_profile()
+        return {
+            "id": user.id,
+            "name": user.name,
+            "login_id": profile.get("login_id", ""),
+            "email": profile.get("primary_email", ""),
+            "avatar_url": profile.get("avatar_url", ""),
+        }
+
+    # ── 과목 ──────────────────────────────────────────
 
     def get_courses(self, enrollment_state="active"):
         courses = []
@@ -22,6 +35,8 @@ class CanvasClient:
                 "enrollment_term_id": getattr(c, "enrollment_term_id", None),
             })
         return courses
+
+    # ── 과제 ──────────────────────────────────────────
 
     def get_assignments(self, course_id, bucket="upcoming"):
         course = self.canvas.get_course(course_id)
@@ -38,6 +53,169 @@ class CanvasClient:
                 "course_id": course_id,
             })
         return assignments
+
+    # ── 성적 ──────────────────────────────────────────
+
+    def get_enrollments(self, course_id):
+        course = self.canvas.get_course(course_id)
+        enrollments = []
+        user = self.canvas.get_current_user()
+        for e in course.get_enrollments(user_id=user.id):
+            enrollments.append({
+                "type": e.type,
+                "enrollment_state": e.enrollment_state,
+                "current_score": getattr(e, "grades", {}).get("current_score"),
+                "current_grade": getattr(e, "grades", {}).get("current_grade"),
+                "final_score": getattr(e, "grades", {}).get("final_score"),
+                "final_grade": getattr(e, "grades", {}).get("final_grade"),
+                "course_id": course_id,
+            })
+        return enrollments
+
+    def get_submissions(self, course_id, assignment_id=None):
+        course = self.canvas.get_course(course_id)
+        user = self.canvas.get_current_user()
+        submissions = []
+        if assignment_id:
+            assignment = course.get_assignment(assignment_id)
+            s = assignment.get_submission(user.id)
+            submissions.append({
+                "assignment_id": assignment_id,
+                "score": getattr(s, "score", None),
+                "grade": getattr(s, "grade", None),
+                "submitted_at": getattr(s, "submitted_at", None),
+                "workflow_state": getattr(s, "workflow_state", ""),
+                "late": getattr(s, "late", False),
+                "missing": getattr(s, "missing", False),
+            })
+        else:
+            for s in course.get_multiple_submissions(student_ids=[user.id]):
+                submissions.append({
+                    "assignment_id": getattr(s, "assignment_id", None),
+                    "score": getattr(s, "score", None),
+                    "grade": getattr(s, "grade", None),
+                    "submitted_at": getattr(s, "submitted_at", None),
+                    "workflow_state": getattr(s, "workflow_state", ""),
+                    "late": getattr(s, "late", False),
+                    "missing": getattr(s, "missing", False),
+                })
+        return submissions
+
+    # ── 퀴즈 ──────────────────────────────────────────
+
+    def get_quizzes(self, course_id):
+        course = self.canvas.get_course(course_id)
+        quizzes = []
+        for q in course.get_quizzes():
+            quizzes.append({
+                "id": q.id,
+                "title": q.title,
+                "description": getattr(q, "description", ""),
+                "quiz_type": getattr(q, "quiz_type", ""),
+                "due_at": getattr(q, "due_at", None),
+                "time_limit": getattr(q, "time_limit", None),
+                "points_possible": getattr(q, "points_possible", None),
+                "allowed_attempts": getattr(q, "allowed_attempts", -1),
+                "html_url": getattr(q, "html_url", ""),
+                "course_id": course_id,
+            })
+        return quizzes
+
+    # ── 캘린더/일정 ──────────────────────────────────────
+
+    def get_calendar_events(self, start_date=None, end_date=None, context_codes=None):
+        kwargs = {}
+        if start_date:
+            kwargs["start_date"] = start_date
+        if end_date:
+            kwargs["end_date"] = end_date
+        if context_codes:
+            kwargs["context_codes"] = context_codes
+        events = []
+        for e in self.canvas.get_calendar_events(**kwargs):
+            events.append({
+                "id": e.id,
+                "title": e.title,
+                "description": getattr(e, "description", ""),
+                "start_at": getattr(e, "start_at", None),
+                "end_at": getattr(e, "end_at", None),
+                "location_name": getattr(e, "location_name", ""),
+                "context_code": getattr(e, "context_code", ""),
+                "html_url": getattr(e, "html_url", ""),
+            })
+        return events
+
+    def get_upcoming_events(self):
+        events = []
+        for e in self.canvas.get_upcoming_events():
+            events.append({
+                "id": getattr(e, "id", None),
+                "title": getattr(e, "title", ""),
+                "type": getattr(e, "type", ""),
+                "start_at": getattr(e, "start_at", None),
+                "end_at": getattr(e, "end_at", None),
+                "html_url": getattr(e, "html_url", ""),
+                "context_code": getattr(e, "context_code", ""),
+            })
+        return events
+
+    # ── 할일 ──────────────────────────────────────────
+
+    def get_todo_items(self):
+        items = []
+        for t in self.canvas.get_todo_items():
+            items.append({
+                "type": getattr(t, "type", ""),
+                "assignment_id": getattr(t.get("assignment", {}), "id", None) if isinstance(t, dict) else getattr(getattr(t, "assignment", None), "id", None),
+                "course_id": getattr(t, "course_id", None),
+                "context_name": getattr(t, "context_name", ""),
+                "html_url": getattr(t, "html_url", ""),
+                "needs_grading_count": getattr(t, "needs_grading_count", 0),
+            })
+        return items
+
+    # ── 토론 ──────────────────────────────────────────
+
+    def get_discussion_topics(self, course_id, limit=20):
+        course = self.canvas.get_course(course_id)
+        topics = []
+        for t in course.get_discussion_topics():
+            if getattr(t, "is_announcement", False):
+                continue
+            topics.append({
+                "id": t.id,
+                "title": t.title,
+                "message": getattr(t, "message", ""),
+                "posted_at": getattr(t, "posted_at", None),
+                "author": getattr(t, "author", {}).get("display_name", ""),
+                "discussion_subentry_count": getattr(t, "discussion_subentry_count", 0),
+                "html_url": getattr(t, "html_url", ""),
+                "course_id": course_id,
+            })
+            if len(topics) >= limit:
+                break
+        return topics
+
+    # ── 공지 ──────────────────────────────────────────
+
+    def get_announcements(self, course_id, limit=20):
+        course = self.canvas.get_course(course_id)
+        announcements = []
+        for t in course.get_discussion_topics(only_announcements=True):
+            announcements.append({
+                "id": t.id,
+                "title": t.title,
+                "message": getattr(t, "message", ""),
+                "posted_at": getattr(t, "posted_at", None),
+                "author": getattr(t, "author", {}).get("display_name", ""),
+                "html_url": getattr(t, "html_url", ""),
+                "course_id": course_id,
+            })
+            if len(announcements) >= limit:
+                break
+        return announcements
+
+    # ── 모듈 ──────────────────────────────────────────
 
     def get_modules(self, course_id):
         course = self.canvas.get_course(course_id)
@@ -63,22 +241,7 @@ class CanvasClient:
             })
         return modules
 
-    def get_announcements(self, course_id, limit=20):
-        course = self.canvas.get_course(course_id)
-        announcements = []
-        for t in course.get_discussion_topics(only_announcements=True):
-            announcements.append({
-                "id": t.id,
-                "title": t.title,
-                "message": getattr(t, "message", ""),
-                "posted_at": getattr(t, "posted_at", None),
-                "author": getattr(t, "author", {}).get("display_name", ""),
-                "html_url": getattr(t, "html_url", ""),
-                "course_id": course_id,
-            })
-            if len(announcements) >= limit:
-                break
-        return announcements
+    # ── 파일/폴더 ──────────────────────────────────────
 
     def get_files(self, course_id, content_types=None):
         course = self.canvas.get_course(course_id)
@@ -97,37 +260,62 @@ class CanvasClient:
             })
         return files
 
-    def to_oalp_event(self, item_type, item_data, course_data):
-        """Canvas 데이터 → OALP StudyEvent dict."""
-        now = datetime.now().isoformat()
-        event = {
-            "oalp_version": "0.1",
-            "id": f"canvas_{item_type}_{item_data['id']}_{int(datetime.now().timestamp())}",
-            "timestamp": now,
-            "ingested_at": now,
-            "resource": {"type": item_type, "subtype": None},
-            "source": {
-                "provider": "lms.canvas",
-                "institution": "skku.edu",
-                "origin_url": item_data.get("html_url", ""),
-                "origin_id": str(item_data["id"]),
-                "collection_method": "api",
-            },
-            "context": {
-                "semester": "2026-spring",
-                "course": {
-                    "code": course_data.get("course_code", ""),
-                    "name": course_data["name"],
-                    "instructor": "",
-                    "lms_id": str(course_data["id"]),
-                },
-            },
-            "body": {
-                "title": item_data.get("name", item_data.get("title", "")),
-                "text": item_data.get("description", item_data.get("message", "")),
-                "format": "html",
-            },
+    def get_folders(self, course_id):
+        course = self.canvas.get_course(course_id)
+        folders = []
+        for f in course.get_folders():
+            folders.append({
+                "id": f.id,
+                "name": f.name,
+                "full_name": getattr(f, "full_name", ""),
+                "files_count": getattr(f, "files_count", 0),
+                "folders_count": getattr(f, "folders_count", 0),
+                "parent_folder_id": getattr(f, "parent_folder_id", None),
+                "course_id": course_id,
+            })
+        return folders
+
+    # ── 페이지(위키) ──────────────────────────────────
+
+    def get_pages(self, course_id):
+        course = self.canvas.get_course(course_id)
+        pages = []
+        for p in course.get_pages():
+            pages.append({
+                "page_id": getattr(p, "page_id", None),
+                "url": p.url,
+                "title": p.title,
+                "created_at": getattr(p, "created_at", None),
+                "updated_at": getattr(p, "updated_at", None),
+                "published": getattr(p, "published", False),
+                "html_url": getattr(p, "html_url", ""),
+                "course_id": course_id,
+            })
+        return pages
+
+    def get_page_content(self, course_id, page_url):
+        course = self.canvas.get_course(course_id)
+        p = course.get_page(page_url)
+        return {
+            "title": p.title,
+            "body": getattr(p, "body", ""),
+            "updated_at": getattr(p, "updated_at", None),
+            "html_url": getattr(p, "html_url", ""),
+            "course_id": course_id,
         }
-        if item_type == "assignment" and item_data.get("due_at"):
-            event["context"]["deadline"] = item_data["due_at"]
-        return event
+
+    # ── 성적표 기간 ──────────────────────────────────
+
+    def get_grading_periods(self, course_id):
+        course = self.canvas.get_course(course_id)
+        periods = []
+        for gp in course.get_grading_periods():
+            periods.append({
+                "id": gp.get("id") if isinstance(gp, dict) else getattr(gp, "id", None),
+                "title": gp.get("title") if isinstance(gp, dict) else getattr(gp, "title", ""),
+                "start_date": gp.get("start_date") if isinstance(gp, dict) else getattr(gp, "start_date", None),
+                "end_date": gp.get("end_date") if isinstance(gp, dict) else getattr(gp, "end_date", None),
+                "close_date": gp.get("close_date") if isinstance(gp, dict) else getattr(gp, "close_date", None),
+                "course_id": course_id,
+            })
+        return periods

@@ -1,5 +1,4 @@
 import os
-import json
 
 from canvasapi import Canvas
 
@@ -15,14 +14,9 @@ class CanvasAuth:
     def _load_token(self):
         token = os.getenv("CANVAS_ACCESS_TOKEN")
         if not token:
-            config_path = os.path.join(os.path.dirname(__file__), "config.json")
-            if os.path.exists(config_path):
-                with open(config_path) as f:
-                    token = json.load(f).get("access_token")
-        if not token:
             raise ValueError(
                 "Canvas Access Token not found. "
-                "Set CANVAS_ACCESS_TOKEN env var or add to adapters/canvas/config.json"
+                "Set CANVAS_ACCESS_TOKEN env var."
             )
         return token
 
