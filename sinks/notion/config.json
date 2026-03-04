@@ -1,9 +1,0 @@
-{
-  "database_ids": {
-    "lectures": "",
-    "assignments": "",
-    "notices": "",
-    "community": ""
-  },
-  "note": "Notion DB ID를 여기에 설정. NOTION_TOKEN 환경변수 필요."
-}

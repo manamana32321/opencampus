@@ -1,41 +1,12 @@
-# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/
-build/
-.eggs/
-*.egg
-
-# Environment
+.venv/
 .env
 .env.local
 .envrc.local
-.venv/
-venv/
-
-# Data (temporary, not committed)
-data/lectures/
-data/recordings/
-data/transcripts/
-data/cache/
-
-# Hub state (runtime)
-hub/processed.json
-hub/pending-events.jsonl
-hub/logs/
-
-# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Secrets
 *.pem
 *.key
-client_secret_*.json

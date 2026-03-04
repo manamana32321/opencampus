@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from .auth import CanvasAuth
+from auth import CanvasAuth
 
 
 class CanvasClient:

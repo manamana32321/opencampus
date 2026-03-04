@@ -1,6 +1,0 @@
-{
-  "base_url": "https://canvas.skku.edu",
-  "learningx_api": "https://canvas.skku.edu/learningx/api/v1",
-  "lx_tool_id": 305,
-  "note": "access_token은 CANVAS_ACCESS_TOKEN 환경변수 사용"
-}
