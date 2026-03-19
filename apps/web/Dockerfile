@@ -15,6 +15,8 @@ WORKDIR /app
 COPY --from=deps /app/ ./
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_API_URL=https://api.opencampus.json-server.win
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm --filter @opencampus/web build
 
 FROM node:22-alpine AS runner
