@@ -1,0 +1,25 @@
+{
+  "id": "opencampus",
+  "name": "OpenCampus Plugin",
+  "description": "OpenCampus REST API — 강의 검색, transcript 조회, 과제/출석/공지 확인",
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "apiBaseUrl": {
+        "type": "string",
+        "description": "OpenCampus API base URL",
+        "default": "https://api.opencampus.json-server.win"
+      },
+      "apiKey": {
+        "type": "string",
+        "description": "OpenCampus API key"
+      },
+      "userId": {
+        "type": "number",
+        "description": "User ID for API requests"
+      }
+    }
+  }
+}
