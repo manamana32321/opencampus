@@ -23,12 +23,16 @@ RUN pnpm build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Copy built output + package.json
 COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/prisma ./prisma
 COPY --from=builder /app/apps/api/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/packages/canvas/dist ./node_modules/@opencampus/canvas/dist
-COPY --from=builder /app/packages/canvas/package.json ./node_modules/@opencampus/canvas/package.json
+# Copy canvas built package as a local dep
+COPY --from=builder /app/packages/canvas/dist /packages/canvas/dist
+COPY --from=builder /app/packages/canvas/package.json /packages/canvas/package.json
+# Install production deps with npm (flat node_modules, no symlink issues)
+RUN sed -i 's|"@opencampus/canvas": "workspace:\*"|"@opencampus/canvas": "file:/packages/canvas"|' package.json && \
+    npm install --omit=dev --ignore-scripts
 EXPOSE 4000
 CMD ["node", "dist/src/main.js"]
