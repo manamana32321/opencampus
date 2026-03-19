@@ -16,8 +16,10 @@ COPY --from=deps /app/ ./
 COPY . .
 RUN pnpm --filter @opencampus/canvas build
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
-RUN pnpm --filter @opencampus/api prisma generate
-RUN pnpm --filter @opencampus/api build
+WORKDIR /app/apps/api
+RUN pnpm prisma generate
+RUN pnpm build
+WORKDIR /app
 RUN pnpm --filter @opencampus/api deploy /app/standalone --prod
 
 FROM base AS runner
