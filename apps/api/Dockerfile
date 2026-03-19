@@ -34,5 +34,7 @@ COPY --from=builder /app/packages/canvas/package.json /packages/canvas/package.j
 # Install production deps with npm (flat node_modules, no symlink issues)
 RUN sed -i 's|"@opencampus/canvas": "workspace:\*"|"@opencampus/canvas": "file:/packages/canvas"|' package.json && \
     npm install --omit=dev --ignore-scripts
+# Copy Prisma generated client from builder (pnpm store location)
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma ./node_modules/.prisma
 EXPOSE 4000
 CMD ["node", "dist/src/main.js"]
