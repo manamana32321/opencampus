@@ -4,11 +4,15 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:migrate": "pnpm --filter @opencampus/api prisma migrate dev",
+    "db:generate": "pnpm --filter @opencampus/api prisma generate",
+    "db:push": "pnpm --filter @opencampus/api prisma db push"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
-    "typescript": "^5.0.0"
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.15.0"
 }

@@ -6,3 +6,13 @@ dist/
 .env.local
 *.log
 handoff.md
+
+# Docker
+docker-compose.override.yaml
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
