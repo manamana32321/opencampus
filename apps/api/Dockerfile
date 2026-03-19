@@ -30,4 +30,4 @@ COPY --from=builder /app/standalone ./
 COPY --from=builder /app/apps/api/prisma ./prisma
 COPY --from=builder /app/apps/api/prisma.config.ts ./prisma.config.ts
 EXPOSE 4000
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
+CMD ["node", "dist/main.js"]
