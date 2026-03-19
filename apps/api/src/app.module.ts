@@ -10,6 +10,10 @@ import { WeeksModule } from './weeks/weeks.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { MaterialsModule } from './materials/materials.module.js';
 import { ProcessorsModule } from './processors/processors.module.js';
+import { AssignmentsModule } from './assignments/assignments.module.js';
+import { AttendancesModule } from './attendances/attendances.module.js';
+import { AnnouncementsModule } from './announcements/announcements.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -24,6 +28,10 @@ import { ProcessorsModule } from './processors/processors.module.js';
     JobsModule,
     MaterialsModule,
     ProcessorsModule,
+    AssignmentsModule,
+    AttendancesModule,
+    AnnouncementsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
