@@ -26,10 +26,8 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/standalone ./
-# Copy prisma schema and config for migrate deploy at startup
+# Copy prisma schema and config for db push at startup
 COPY --from=builder /app/apps/api/prisma ./prisma
 COPY --from=builder /app/apps/api/prisma.config.ts ./prisma.config.ts
-# Ensure generated Prisma client binaries are present
-COPY --from=builder /app/apps/api/node_modules/.prisma ./node_modules/.prisma
 EXPOSE 4000
 CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
