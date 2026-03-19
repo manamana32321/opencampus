@@ -41,7 +41,8 @@ export class CoursesService {
 
     const results = [];
     for (const cc of canvasCourses) {
-      const semesterName = this.deriveSemesterName(cc.startAt);
+      if (!cc.name) continue; // skip access-denied courses
+      const semesterName = this.deriveSemesterName(cc.startAt, cc.term?.name);
       if (!semesterName) continue;
 
       const semester = await this.prisma.semester.upsert({
@@ -78,7 +79,13 @@ export class CoursesService {
     return results;
   }
 
-  private deriveSemesterName(startAt: string | null): string | null {
+  private deriveSemesterName(startAt: string | null, termName?: string): string | null {
+    // Try parsing term name first (e.g., "2026년 1학기" → "2026-1")
+    if (termName) {
+      const termMatch = termName.match(/(\d{4}).*?(\d)학기/);
+      if (termMatch) return `${termMatch[1]}-${termMatch[2]}`;
+    }
+    // Fallback to startAt date
     if (!startAt) return null;
     const d = new Date(startAt);
     const year = d.getFullYear();

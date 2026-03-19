@@ -194,11 +194,15 @@ export class CanvasClient {
 
   // ── Courses ───────────────────────────────────────────────
 
-  async getCourses(): Promise<Course[]> {
-    return this.requestAll<Course>('/api/v1/courses', {
-      enrollment_state: 'active',
+  async getCourses(enrollmentState?: string): Promise<Course[]> {
+    const params: Record<string, unknown> = {
       include: ['term', 'total_students'],
-    });
+      per_page: 100,
+    };
+    if (enrollmentState) {
+      params.enrollment_state = enrollmentState;
+    }
+    return this.requestAll<Course>('/api/v1/courses', params);
   }
 
   async getFavorites(): Promise<Course[]> {
