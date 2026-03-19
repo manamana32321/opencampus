@@ -52,7 +52,7 @@ function CanvasSection() {
     try {
       await apiFetch('/users/me', {
         method: 'PATCH',
-        body: JSON.stringify({ canvasToken: token }),
+        body: JSON.stringify({ canvasAccessToken: token }),
       });
       setToken('');
       setSaveStatus('ok');
