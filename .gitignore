@@ -1,12 +1,7 @@
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
+node_modules/
+.next/
+dist/
+.turbo/
 .env
 .env.local
-.envrc.local
-.vscode/
-.idea/
-.DS_Store
-*.pem
-*.key
+*.log
