@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 
@@ -37,7 +37,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     try {
       const data = await apiFetch<NotificationMeta | Notification[]>('/notifications?limit=5');
       if (Array.isArray(data)) {
@@ -50,14 +50,19 @@ export function NotificationBell() {
     } catch {
       // silently ignore polling errors
     }
-  }
+  }, []);
 
   // Initial fetch + 30s poll
   useEffect(() => {
-    fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    // Kick off the first fetch via a zero-delay timeout so setState is called
+    // inside a callback (not synchronously in the effect body).
+    const initial = setTimeout(fetchNotifications, 0);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [fetchNotifications]);
 
   // Close dropdown on outside click
   useEffect(() => {
