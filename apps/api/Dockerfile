@@ -6,6 +6,8 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/canvas/package.json packages/canvas/
+COPY packages/mcp/package.json packages/mcp/
+COPY packages/openclaw-plugin/package.json packages/openclaw-plugin/
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
@@ -13,6 +15,7 @@ WORKDIR /app
 COPY --from=deps /app/ ./
 COPY . .
 RUN pnpm --filter @opencampus/canvas build
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN pnpm --filter @opencampus/api prisma generate
 RUN pnpm --filter @opencampus/api build
 RUN pnpm --filter @opencampus/api deploy /app/standalone --prod
