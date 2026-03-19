@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique @db.VarChar(255)
+  name               String?   @db.VarChar(100)
+  picture            String?
+  googleRefreshToken String?   @map("google_refresh_token")
+  canvasAccessToken  String?   @map("canvas_access_token")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  semesters            Semester[]
+  courses              Course[]
+  courseWeeks          CourseWeek[]
+  materials            Material[]
+  attendances          Attendance[]
+  assignments          Assignment[]
+  announcements        AnnouncementRecord[]
+  jobs                 Job[]
+  notifications        Notification[]
+  notificationSettings NotificationSetting[]
+
+  @@map("users")
+}
+
+model Semester {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  name      String    @db.VarChar(20)
+  startDate DateTime? @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id])
+  courses Course[]
+
+  @@unique([userId, name])
+  @@map("semesters")
+}
+
+model Course {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  semesterId Int      @map("semester_id")
+  name       String   @db.VarChar(100)
+  shortName  String?  @map("short_name") @db.VarChar(20)
+  canvasId   Int?     @map("canvas_id")
+  metadata   Json     @default("{}")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user          User                 @relation(fields: [userId], references: [id])
+  semester      Semester             @relation(fields: [semesterId], references: [id])
+  courseWeeks   CourseWeek[]
+  attendances   Attendance[]
+  assignments   Assignment[]
+  announcements AnnouncementRecord[]
+
+  @@map("courses")
+}
+
+model CourseWeek {
+  id        Int       @id @default(autoincrement())
+  courseId  Int       @map("course_id")
+  userId    Int       @map("user_id")
+  week      Int
+  dateStart DateTime? @map("date_start") @db.Date
+
+  course    Course     @relation(fields: [courseId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  materials Material[]
+
+  @@unique([courseId, userId, week])
+  @@map("course_weeks")
+}
+
+model Material {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  courseWeekId     Int      @map("course_week_id")
+  parentId         Int?     @map("parent_id")
+  type             String   @db.VarChar(20)
+  session          Int?
+  filePath         String   @map("file_path")
+  originalFilename String?  @map("original_filename")
+  transcript       String?
+  extractedText    String?  @map("extracted_text")
+  summary          String?
+  durationMin      Int?     @map("duration_min")
+  aiConfidence     Float?   @map("ai_confidence")
+  groupId          String?  @map("group_id") @db.Uuid
+  partNumber       Int      @default(1) @map("part_number")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user       User       @relation(fields: [userId], references: [id])
+  courseWeek CourseWeek @relation(fields: [courseWeekId], references: [id])
+  parent     Material?  @relation("MaterialChildren", fields: [parentId], references: [id])
+  children   Material[] @relation("MaterialChildren")
+  jobs       Job[]
+
+  @@map("materials")
+}
+
+model Attendance {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  courseId     Int       @map("course_id")
+  week         Int
+  session      Int?
+  status       String    @db.VarChar(20)
+  source       String    @db.VarChar(20)
+  note         String?
+  canvasItemId Int?      @map("canvas_item_id")
+  checkedAt    DateTime? @map("checked_at")
+  syncedAt     DateTime? @map("synced_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId, week, session])
+  @@map("attendances")
+}
+
+model Assignment {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  courseId        Int       @map("course_id")
+  canvasId        Int?      @map("canvas_id")
+  title           String    @db.VarChar(500)
+  description     String?
+  dueAt           DateTime? @map("due_at")
+  pointsPossible  Float?    @map("points_possible")
+  submissionTypes String[]  @map("submission_types")
+  status          String    @default("pending") @db.VarChar(20)
+  score           Float?
+  grade           String?   @db.VarChar(20)
+  submittedAt     DateTime? @map("submitted_at")
+  canvasUrl       String?   @map("canvas_url")
+  syncedAt        DateTime? @map("synced_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@map("assignments")
+}
+
+model AnnouncementRecord {
+  id       Int       @id @default(autoincrement())
+  userId   Int       @map("user_id")
+  courseId Int       @map("course_id")
+  canvasId Int?      @map("canvas_id")
+  title    String    @db.VarChar(500)
+  message  String?
+  author   String?   @db.VarChar(100)
+  postedAt DateTime? @map("posted_at")
+  isRead   Boolean   @default(false) @map("is_read")
+  readAt   DateTime? @map("read_at")
+  canvasUrl String?  @map("canvas_url")
+  syncedAt DateTime? @map("synced_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@map("announcements")
+}
+
+model Job {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  materialId Int      @map("material_id")
+  type       String   @db.VarChar(20)
+  status     String   @default("pending") @db.VarChar(20)
+  progress   Int      @default(0)
+  error      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id])
+  material Material @relation(fields: [materialId], references: [id])
+
+  @@map("jobs")
+}
+
+model Notification {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  type          String   @db.VarChar(30)
+  title         String?  @db.VarChar(500)
+  message       String?
+  referenceType String?  @map("reference_type") @db.VarChar(20)
+  referenceId   Int?     @map("reference_id")
+  isRead        Boolean  @default(false) @map("is_read")
+  sentAt        DateTime @default(now()) @map("sent_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model NotificationSetting {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @map("user_id")
+  type           String   @db.VarChar(30)
+  enabled        Boolean  @default(true)
+  advanceMinutes Int      @default(60) @map("advance_minutes")
+  channels       String[] @default(["web"])
+  webhookUrl     String?  @map("webhook_url")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
+  @@map("notification_settings")
+}

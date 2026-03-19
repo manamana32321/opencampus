@@ -1,0 +1,10 @@
+{
+  "name": "OpenCampus",
+  "short_name": "OpenCampus",
+  "description": "강의 자료 통합 관리 허브",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": []
+}
