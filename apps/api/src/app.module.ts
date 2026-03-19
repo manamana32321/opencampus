@@ -9,6 +9,7 @@ import { StorageModule } from './storage/storage.module.js';
 import { WeeksModule } from './weeks/weeks.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { MaterialsModule } from './materials/materials.module.js';
+import { ProcessorsModule } from './processors/processors.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MaterialsModule } from './materials/materials.module.js';
     WeeksModule,
     JobsModule,
     MaterialsModule,
+    ProcessorsModule,
   ],
 })
 export class AppModule {}
