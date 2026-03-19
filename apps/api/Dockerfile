@@ -32,4 +32,4 @@ COPY --from=builder /app/apps/api/prisma.config.ts ./prisma.config.ts
 # Ensure generated Prisma client binaries are present
 COPY --from=builder /app/apps/api/node_modules/.prisma ./node_modules/.prisma
 EXPOSE 4000
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
