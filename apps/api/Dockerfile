@@ -31,4 +31,4 @@ COPY --from=builder /app/apps/api/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/packages/canvas/dist ./node_modules/@opencampus/canvas/dist
 COPY --from=builder /app/packages/canvas/package.json ./node_modules/@opencampus/canvas/package.json
 EXPOSE 4000
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
