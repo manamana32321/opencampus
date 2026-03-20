@@ -7,7 +7,12 @@ import { WebhookService } from './webhook.service.js';
 
 @Module({
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationSettingsService, NotificationScheduler, WebhookService],
+  providers: [
+    NotificationsService,
+    NotificationSettingsService,
+    NotificationScheduler,
+    WebhookService,
+  ],
   exports: [NotificationsService, NotificationSettingsService],
 })
 export class NotificationsModule {}

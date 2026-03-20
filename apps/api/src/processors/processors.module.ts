@@ -53,7 +53,13 @@ export class ProcessorRegistry {
 }
 
 @Module({
-  providers: [SttProcessor, OcrProcessor, PdfProcessor, NoteProcessor, ProcessorRegistry],
+  providers: [
+    SttProcessor,
+    OcrProcessor,
+    PdfProcessor,
+    NoteProcessor,
+    ProcessorRegistry,
+  ],
   exports: [ProcessorRegistry],
 })
 export class ProcessorsModule {}

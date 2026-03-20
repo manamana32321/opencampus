@@ -9,8 +9,13 @@ import {
   Req,
   ParseIntPipe,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AnnouncementsService } from './announcements.service.js';
+
+interface AuthRequest extends Request {
+  user: { userId: number };
+}
 
 @Controller('announcements')
 @UseGuards(AuthGuard)
@@ -19,7 +24,7 @@ export class AnnouncementsController {
 
   @Get()
   findAll(
-    @Req() req: any,
+    @Req() req: AuthRequest,
     @Query('course_id') courseId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -33,12 +38,12 @@ export class AnnouncementsController {
   }
 
   @Patch(':id/read')
-  markRead(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  markRead(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.announcements.markRead(id, req.user.userId);
   }
 
   @Post('sync')
-  sync(@Req() req: any) {
+  sync(@Req() req: AuthRequest) {
     return this.announcements.syncFromCanvas(req.user.userId);
   }
 }

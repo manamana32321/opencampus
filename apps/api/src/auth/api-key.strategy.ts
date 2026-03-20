@@ -12,7 +12,8 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
 
   validate(req: Request): { userId: number; email: string } {
     const apiKey = req.headers['x-api-key'];
-    const expectedKey = this.configService.getOrThrow<string>('OPENCAMPUS_API_KEY');
+    const expectedKey =
+      this.configService.getOrThrow<string>('OPENCAMPUS_API_KEY');
 
     if (!apiKey || apiKey !== expectedKey) {
       throw new UnauthorizedException('Invalid API key');
@@ -20,7 +21,9 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'api-key') {
 
     const userIdHeader = req.headers['x-user-id'];
     if (!userIdHeader) {
-      throw new UnauthorizedException('x-user-id header is required when using API key');
+      throw new UnauthorizedException(
+        'x-user-id header is required when using API key',
+      );
     }
 
     const userId = parseInt(userIdHeader as string, 10);

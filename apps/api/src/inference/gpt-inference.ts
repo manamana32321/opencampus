@@ -36,16 +36,26 @@ export class GptInferenceService {
 
   async infer(input: GptInferenceInput): Promise<GptInferenceResult> {
     const courseList = input.courses
-      .map((c) => `- "${c.name}"${c.shortName ? ` (shortName: "${c.shortName}")` : ''}`)
+      .map(
+        (c) =>
+          `- "${c.name}"${c.shortName ? ` (shortName: "${c.shortName}")` : ''}`,
+      )
       .join('\n');
 
-    const hintsDescription = [
-      input.parsedHints.courseName ? `courseName hint: "${input.parsedHints.courseName}"` : null,
-      input.parsedHints.week !== null ? `week hint: ${input.parsedHints.week}` : null,
-      input.parsedHints.session !== null ? `session hint: ${input.parsedHints.session}` : null,
-    ]
-      .filter(Boolean)
-      .join(', ') || 'none';
+    const hintsDescription =
+      [
+        input.parsedHints.courseName
+          ? `courseName hint: "${input.parsedHints.courseName}"`
+          : null,
+        input.parsedHints.week !== null
+          ? `week hint: ${input.parsedHints.week}`
+          : null,
+        input.parsedHints.session !== null
+          ? `session hint: ${input.parsedHints.session}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(', ') || 'none';
 
     const prompt = `You are an academic file classifier. Given a filename and context, identify which course it belongs to and its week/session number.
 
@@ -79,7 +89,9 @@ Respond with a JSON object with exactly these fields:
     }
 
     const parsed = JSON.parse(content) as GptInferenceResult;
-    this.logger.debug(`GPT inference for "${input.filename}": confidence=${parsed.confidence}, course="${parsed.courseName}"`);
+    this.logger.debug(
+      `GPT inference for "${input.filename}": confidence=${parsed.confidence}, course="${parsed.courseName}"`,
+    );
     return parsed;
   }
 }

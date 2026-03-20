@@ -69,21 +69,19 @@ export class PdfProcessor {
     // Disable worker in Node.js environment
     pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
-    const doc = await pdfjsLib
-      .getDocument({
-        data: new Uint8Array(buffer),
-        useWorkerFetch: false,
-        isEvalSupported: false,
-        useSystemFonts: true,
-      })
-      .promise;
+    const doc = await pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    }).promise;
 
     const pages: string[] = [];
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
       const content = await page.getTextContent();
       const pageText = content.items
-        .map((item) => ('str' in item ? (item.str as string) : ''))
+        .map((item) => ('str' in item ? item.str : ''))
         .join(' ');
       pages.push(pageText);
     }

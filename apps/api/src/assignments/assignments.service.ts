@@ -28,9 +28,13 @@ export class AssignmentsService {
   }
 
   async syncFromCanvas(userId: number) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     if (!user.canvasAccessToken) {
-      throw new BadRequestException('Canvas access token not set. Update via PATCH /users/me');
+      throw new BadRequestException(
+        'Canvas access token not set. Update via PATCH /users/me',
+      );
     }
 
     const canvas = new CanvasClient({
@@ -54,7 +58,9 @@ export class AssignmentsService {
           canvas.getSubmissions(canvasCourseId),
         ]);
 
-        const submissionMap = new Map(submissions.map((s) => [s.assignmentId, s]));
+        const submissionMap = new Map(
+          submissions.map((s) => [s.assignmentId, s]),
+        );
 
         for (const ca of assignments) {
           const submission = submissionMap.get(ca.id);
@@ -96,7 +102,9 @@ export class AssignmentsService {
                 status,
                 score: submission?.score ?? null,
                 grade: submission?.grade ?? null,
-                submittedAt: submission?.submittedAt ? new Date(submission.submittedAt) : null,
+                submittedAt: submission?.submittedAt
+                  ? new Date(submission.submittedAt)
+                  : null,
                 syncedAt: new Date(),
               },
             });
@@ -113,10 +121,15 @@ export class AssignmentsService {
 
   private deriveStatus(
     assignment: { dueAt: string | null },
-    submission?: { workflowState: string; submittedAt: string | null; score: number | null } | undefined,
+    submission?: {
+      workflowState: string;
+      submittedAt: string | null;
+      score: number | null;
+    },
   ): string {
     if (!submission) {
-      if (assignment.dueAt && new Date(assignment.dueAt) < new Date()) return 'missing';
+      if (assignment.dueAt && new Date(assignment.dueAt) < new Date())
+        return 'missing';
       return 'pending';
     }
     const ws = submission.workflowState;

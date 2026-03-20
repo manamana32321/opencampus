@@ -7,7 +7,9 @@ export class WeeksService {
 
   async findByCourse(courseId: number, userId: number) {
     // Verify course ownership
-    await this.prisma.course.findFirstOrThrow({ where: { id: courseId, userId } });
+    await this.prisma.course.findFirstOrThrow({
+      where: { id: courseId, userId },
+    });
 
     const weeks = await this.prisma.courseWeek.findMany({
       where: { courseId, userId },

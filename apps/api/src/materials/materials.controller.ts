@@ -13,9 +13,14 @@ import {
   Req,
   ParseIntPipe,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { MaterialsService } from './materials.service.js';
+
+interface AuthRequest extends Request {
+  user: { userId: number };
+}
 
 @Controller('materials')
 @UseGuards(AuthGuard)
@@ -24,7 +29,7 @@ export class MaterialsController {
 
   @Get()
   findAll(
-    @Req() req: any,
+    @Req() req: AuthRequest,
     @Query('course_id') courseId?: string,
     @Query('week') week?: string,
     @Query('type') type?: string,
@@ -47,31 +52,40 @@ export class MaterialsController {
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 500 * 1024 * 1024 } }),
   )
-  upload(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
+  upload(@Req() req: AuthRequest, @UploadedFile() file: Express.Multer.File) {
     return this.materials.upload(req.user.userId, file);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.materials.findById(id, req.user.userId);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
-    @Body() body: any,
+    @Req() req: AuthRequest,
+    @Body()
+    body: {
+      courseId?: number;
+      week?: number;
+      session?: number;
+      type?: string;
+      transcript?: string;
+      extractedText?: string;
+      summary?: string;
+    },
   ) {
     return this.materials.update(id, req.user.userId, body);
   }
 
   @Delete(':id')
-  delete(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  delete(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.materials.delete(id, req.user.userId);
   }
 
   @Post(':id/analyze')
-  reAnalyze(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  reAnalyze(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.materials.reAnalyze(id, req.user.userId);
   }
 
@@ -81,7 +95,7 @@ export class MaterialsController {
   )
   attachPhoto(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @Req() req: AuthRequest,
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.materials.attachPhoto(id, req.user.userId, file);

@@ -25,9 +25,17 @@ export class AttendancesService {
 
   async create(
     userId: number,
-    data: { courseId: number; week: number; session?: number; status: string; note?: string },
+    data: {
+      courseId: number;
+      week: number;
+      session?: number;
+      status: string;
+      note?: string;
+    },
   ) {
-    await this.prisma.course.findFirstOrThrow({ where: { id: data.courseId, userId } });
+    await this.prisma.course.findFirstOrThrow({
+      where: { id: data.courseId, userId },
+    });
 
     return this.prisma.attendance.upsert({
       where: {
@@ -56,15 +64,23 @@ export class AttendancesService {
     });
   }
 
-  async update(id: number, userId: number, data: { status?: string; note?: string }) {
+  async update(
+    id: number,
+    userId: number,
+    data: { status?: string; note?: string },
+  ) {
     await this.prisma.attendance.findFirstOrThrow({ where: { id, userId } });
     return this.prisma.attendance.update({ where: { id }, data });
   }
 
   async syncFromCanvas(userId: number) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     if (!user.canvasAccessToken) {
-      throw new BadRequestException('Canvas access token not set. Update via PATCH /users/me');
+      throw new BadRequestException(
+        'Canvas access token not set. Update via PATCH /users/me',
+      );
     }
 
     const learningx = new LearningXClient({
@@ -90,7 +106,8 @@ export class AttendancesService {
       const attendanceItems = items.filter((item) => item.required);
 
       for (const item of attendanceItems) {
-        const canvasItemId = typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
+        const canvasItemId =
+          typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
         if (isNaN(canvasItemId)) continue;
 
         // Derive week from title or use sequential index — fall back to 1

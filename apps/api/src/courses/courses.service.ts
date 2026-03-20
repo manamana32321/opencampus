@@ -21,16 +21,24 @@ export class CoursesService {
     });
   }
 
-  async update(id: number, userId: number, data: { shortName?: string; metadata?: any; notes?: string }) {
+  async update(
+    id: number,
+    userId: number,
+    data: { shortName?: string; metadata?: any; notes?: string },
+  ) {
     // Verify ownership
     await this.prisma.course.findFirstOrThrow({ where: { id, userId } });
     return this.prisma.course.update({ where: { id }, data });
   }
 
   async syncFromCanvas(userId: number) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     if (!user.canvasAccessToken) {
-      throw new BadRequestException('Canvas access token not set. Update via PATCH /users/me');
+      throw new BadRequestException(
+        'Canvas access token not set. Update via PATCH /users/me',
+      );
     }
 
     const canvas = new CanvasClient({
@@ -79,7 +87,10 @@ export class CoursesService {
     return results;
   }
 
-  private deriveSemesterName(startAt: string | null, termName?: string): string | null {
+  private deriveSemesterName(
+    startAt: string | null,
+    termName?: string,
+  ): string | null {
     // Try parsing term name first (e.g., "2026년 1학기" → "2026-1")
     if (termName) {
       const termMatch = termName.match(/(\d{4}).*?(\d)학기/);

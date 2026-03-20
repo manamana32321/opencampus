@@ -8,8 +8,13 @@ import {
   Req,
   ParseIntPipe,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AssignmentsService } from './assignments.service.js';
+
+interface AuthRequest extends Request {
+  user: { userId: number };
+}
 
 @Controller('assignments')
 @UseGuards(AuthGuard)
@@ -18,7 +23,7 @@ export class AssignmentsController {
 
   @Get()
   findAll(
-    @Req() req: any,
+    @Req() req: AuthRequest,
     @Query('course_id') courseId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -32,12 +37,12 @@ export class AssignmentsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.assignments.findById(id, req.user.userId);
   }
 
   @Post('sync')
-  sync(@Req() req: any) {
+  sync(@Req() req: AuthRequest) {
     return this.assignments.syncFromCanvas(req.user.userId);
   }
 }

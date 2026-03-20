@@ -53,10 +53,7 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(
-    @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
+  refresh(@Req() req: Request, @Res() res: Response): void {
     const cookies = req.cookies as Record<string, string> | undefined;
     const oldToken = cookies?.['token'];
     if (!oldToken) {

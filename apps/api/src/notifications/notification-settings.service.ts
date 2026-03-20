@@ -16,7 +16,9 @@ export class NotificationSettingsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(userId: number) {
-    const existing = await this.prisma.notificationSetting.findMany({ where: { userId } });
+    const existing = await this.prisma.notificationSetting.findMany({
+      where: { userId },
+    });
     const existingMap = new Map(existing.map((s) => [s.type, s]));
 
     const results = [];
@@ -50,7 +52,12 @@ export class NotificationSettingsService {
   async update(
     userId: number,
     type: string,
-    data: { enabled?: boolean; advanceMinutes?: number; channels?: string[]; webhookUrl?: string },
+    data: {
+      enabled?: boolean;
+      advanceMinutes?: number;
+      channels?: string[];
+      webhookUrl?: string;
+    },
   ) {
     return this.prisma.notificationSetting.upsert({
       where: { userId_type: { userId, type } },
@@ -59,7 +66,8 @@ export class NotificationSettingsService {
         userId,
         type,
         enabled: data.enabled ?? DEFAULT_SETTINGS[type]?.enabled ?? true,
-        advanceMinutes: data.advanceMinutes ?? DEFAULT_SETTINGS[type]?.advanceMinutes ?? 0,
+        advanceMinutes:
+          data.advanceMinutes ?? DEFAULT_SETTINGS[type]?.advanceMinutes ?? 0,
         channels: data.channels ?? DEFAULT_SETTINGS[type]?.channels ?? ['web'],
         webhookUrl: data.webhookUrl ?? null,
       },

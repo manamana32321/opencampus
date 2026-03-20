@@ -4,7 +4,10 @@ import { Injectable, Logger } from '@nestjs/common';
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
 
-  async dispatch(url: string, payload: Record<string, unknown>): Promise<boolean> {
+  async dispatch(
+    url: string,
+    payload: Record<string, unknown>,
+  ): Promise<boolean> {
     try {
       const response = await fetch(url, {
         method: 'POST',

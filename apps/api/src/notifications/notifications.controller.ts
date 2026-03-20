@@ -9,9 +9,14 @@ import {
   Req,
   ParseIntPipe,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { NotificationsService } from './notifications.service.js';
 import { NotificationSettingsService } from './notification-settings.service.js';
+
+interface AuthRequest extends Request {
+  user: { userId: number };
+}
 
 @Controller()
 @UseGuards(AuthGuard)
@@ -23,7 +28,7 @@ export class NotificationsController {
 
   @Get('notifications')
   findAll(
-    @Req() req: any,
+    @Req() req: AuthRequest,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -35,22 +40,32 @@ export class NotificationsController {
   }
 
   @Patch('notifications/read-all')
-  markAllRead(@Req() req: any) {
+  markAllRead(@Req() req: AuthRequest) {
     return this.notifications.markAllRead(req.user.userId);
   }
 
   @Patch('notifications/:id/read')
-  markRead(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  markRead(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.notifications.markRead(id, req.user.userId);
   }
 
   @Get('notification-settings')
-  getSettings(@Req() req: any) {
+  getSettings(@Req() req: AuthRequest) {
     return this.settings.findAll(req.user.userId);
   }
 
   @Patch('notification-settings/:type')
-  updateSetting(@Param('type') type: string, @Req() req: any, @Body() body: any) {
+  updateSetting(
+    @Param('type') type: string,
+    @Req() req: AuthRequest,
+    @Body()
+    body: {
+      enabled?: boolean;
+      advanceMinutes?: number;
+      channels?: string[];
+      webhookUrl?: string;
+    },
+  ) {
     return this.settings.update(req.user.userId, type, body);
   }
 }

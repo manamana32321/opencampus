@@ -13,6 +13,10 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { JobsService } from './jobs.service.js';
 import { JobQueue } from './job-queue.js';
 
+interface AuthRequest extends Request {
+  user: { userId: number };
+}
+
 @Controller('jobs')
 @UseGuards(AuthGuard)
 export class JobsController {
@@ -23,7 +27,7 @@ export class JobsController {
 
   @Get()
   findAll(
-    @Req() req: any,
+    @Req() req: AuthRequest,
     @Query('status') status?: string,
     @Query('material_id') materialIdRaw?: string,
     @Query('page') pageRaw?: string,
@@ -32,7 +36,12 @@ export class JobsController {
     const materialId = materialIdRaw ? parseInt(materialIdRaw, 10) : undefined;
     const page = pageRaw ? parseInt(pageRaw, 10) : 1;
     const limit = limitRaw ? parseInt(limitRaw, 10) : 20;
-    return this.jobs.findAll(req.user.userId, { status, materialId }, page, limit);
+    return this.jobs.findAll(
+      req.user.userId,
+      { status, materialId },
+      page,
+      limit,
+    );
   }
 
   @Get(':id/stream')

@@ -34,7 +34,11 @@ export class InferenceService {
     });
 
     // Step 3: Try shortName matching against parsed course name hint
-    let matchedCourse: { id: number; name: string; shortName: string | null } | null = null;
+    let matchedCourse: {
+      id: number;
+      name: string;
+      shortName: string | null;
+    } | null = null;
     if (parsed.courseName) {
       const hint = parsed.courseName.trim().toLowerCase();
       matchedCourse =
@@ -92,7 +96,9 @@ export class InferenceService {
       // Resolve courseId from GPT-returned courseName
       const gptCourse =
         courses.find(
-          (c) => c.name.trim().toLowerCase() === gptResult.courseName.trim().toLowerCase(),
+          (c) =>
+            c.name.trim().toLowerCase() ===
+            gptResult.courseName.trim().toLowerCase(),
         ) ?? null;
 
       return {
@@ -107,7 +113,9 @@ export class InferenceService {
       };
     } catch (err) {
       // Step 6: GPT failure — return partial results with lower confidence
-      this.logger.warn(`GPT inference failed for "${filename}": ${(err as Error).message}`);
+      this.logger.warn(
+        `GPT inference failed for "${filename}": ${(err as Error).message}`,
+      );
       return {
         courseId: matchedCourse?.id ?? null,
         courseName: matchedCourse?.name ?? parsed.courseName,

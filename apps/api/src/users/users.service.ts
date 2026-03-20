@@ -9,7 +9,10 @@ export class UsersService {
     return this.prisma.user.findUniqueOrThrow({ where: { id } });
   }
 
-  async update(id: number, data: { canvasAccessToken?: string; name?: string }) {
+  async update(
+    id: number,
+    data: { canvasAccessToken?: string; name?: string },
+  ) {
     return this.prisma.user.update({ where: { id }, data });
   }
 }

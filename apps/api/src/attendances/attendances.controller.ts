@@ -10,8 +10,13 @@ import {
   Req,
   ParseIntPipe,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AttendancesService } from './attendances.service.js';
+
+interface AuthRequest extends Request {
+  user: { userId: number };
+}
 
 @Controller()
 @UseGuards(AuthGuard)
@@ -21,7 +26,7 @@ export class AttendancesController {
   @Get('courses/:courseId/attendances')
   findByCourse(
     @Param('courseId', ParseIntPipe) courseId: number,
-    @Req() req: any,
+    @Req() req: AuthRequest,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -34,17 +39,31 @@ export class AttendancesController {
   }
 
   @Post('attendances')
-  create(@Req() req: any, @Body() body: any) {
+  create(
+    @Req() req: AuthRequest,
+    @Body()
+    body: {
+      courseId: number;
+      week: number;
+      session?: number;
+      status: string;
+      note?: string;
+    },
+  ) {
     return this.attendances.create(req.user.userId, body);
   }
 
   @Patch('attendances/:id')
-  update(@Param('id', ParseIntPipe) id: number, @Req() req: any, @Body() body: any) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthRequest,
+    @Body() body: { status?: string; note?: string },
+  ) {
     return this.attendances.update(id, req.user.userId, body);
   }
 
   @Post('attendances/sync')
-  sync(@Req() req: any) {
+  sync(@Req() req: AuthRequest) {
     return this.attendances.syncFromCanvas(req.user.userId);
   }
 }

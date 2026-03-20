@@ -16,15 +16,17 @@ export class NotificationScheduler implements OnModuleInit {
 
   onModuleInit() {
     // Run every 60 seconds
-    this.interval = setInterval(
-      () => this.tick().catch((e) => this.logger.error('Scheduler tick failed', e)),
-      60_000,
-    );
+    this.interval = setInterval(() => {
+      void this.tick().catch((e) =>
+        this.logger.error('Scheduler tick failed', e),
+      );
+    }, 60_000);
     // Also run once on startup after 5s delay
-    setTimeout(
-      () => this.tick().catch((e) => this.logger.error('Initial tick failed', e)),
-      5_000,
-    );
+    setTimeout(() => {
+      void this.tick().catch((e) =>
+        this.logger.error('Initial tick failed', e),
+      );
+    }, 5_000);
   }
 
   private async tick() {
@@ -40,7 +42,9 @@ export class NotificationScheduler implements OnModuleInit {
 
     for (const setting of settings) {
       const now = new Date();
-      const deadline = new Date(now.getTime() + setting.advanceMinutes * 60_000);
+      const deadline = new Date(
+        now.getTime() + setting.advanceMinutes * 60_000,
+      );
 
       // Find assignments due between now and deadline, not yet notified
       const assignments = await this.prisma.assignment.findMany({

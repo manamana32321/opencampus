@@ -26,7 +26,12 @@ export class MaterialsService {
     page = 1,
     limit = 20,
   ) {
-    const where: any = { userId, parentId: null };
+    const where: {
+      userId: number;
+      parentId: null;
+      type?: string;
+      courseWeekId?: number | { in: number[] };
+    } = { userId, parentId: null };
     if (filters.type) where.type = filters.type;
     if (filters.courseId && filters.week) {
       const courseWeek = await this.prisma.courseWeek.findUnique({
@@ -134,7 +139,9 @@ export class MaterialsService {
       const job = await this.jobs.create(userId, material.id, jobType);
       // Run processor asynchronously (don't block upload response)
       this.runProcessor(processor, job.id, material.id).catch((err) =>
-        this.logger.error(`Processor failed for material ${material.id}: ${err}`),
+        this.logger.error(
+          `Processor failed for material ${material.id}: ${err}`,
+        ),
       );
     }
 
@@ -156,7 +163,14 @@ export class MaterialsService {
   ) {
     await this.findById(id, userId); // verify ownership
 
-    const updateData: any = {};
+    const updateData: {
+      courseWeekId?: number;
+      session?: number;
+      type?: string;
+      transcript?: string;
+      extractedText?: string;
+      summary?: string;
+    } = {};
     if (data.courseId && data.week) {
       const courseWeek = await this.weeks.getOrCreate(
         data.courseId,
@@ -219,18 +233,24 @@ export class MaterialsService {
   }
 
   private async runProcessor(
-    processor: { process(materialId: number, onProgress: (pct: number) => void): Promise<void> },
+    processor: {
+      process(
+        materialId: number,
+        onProgress: (pct: number) => void,
+      ): Promise<void>;
+    },
     jobId: number,
     materialId: number,
   ) {
     try {
       await this.jobs.updateProgress(jobId, 0);
-      await processor.process(materialId, async (pct: number) => {
-        await this.jobs.updateProgress(jobId, pct);
+      await processor.process(materialId, (pct: number) => {
+        void this.jobs.updateProgress(jobId, pct);
       });
       await this.jobs.complete(jobId);
-    } catch (err: any) {
-      await this.jobs.fail(jobId, err?.message ?? 'Unknown error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      await this.jobs.fail(jobId, message);
     }
   }
 

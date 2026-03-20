@@ -24,17 +24,25 @@ export class AnnouncementsService {
   }
 
   async markRead(id: number, userId: number) {
-    await this.prisma.announcementRecord.findFirstOrThrow({ where: { id, userId } });
+    await this.prisma.announcementRecord.findFirstOrThrow({
+      where: { id, userId },
+    });
     return this.prisma.announcementRecord.update({
       where: { id },
       data: { isRead: true, readAt: new Date() },
     });
   }
 
-  async syncFromCanvas(userId: number): Promise<{ synced: number; new: number }> {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  async syncFromCanvas(
+    userId: number,
+  ): Promise<{ synced: number; new: number }> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     if (!user.canvasAccessToken) {
-      throw new BadRequestException('Canvas access token not set. Update via PATCH /users/me');
+      throw new BadRequestException(
+        'Canvas access token not set. Update via PATCH /users/me',
+      );
     }
 
     const canvas = new CanvasClient({

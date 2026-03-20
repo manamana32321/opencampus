@@ -25,7 +25,10 @@ export class NotificationsService {
 
   async markRead(id: number, userId: number) {
     await this.prisma.notification.findFirstOrThrow({ where: { id, userId } });
-    return this.prisma.notification.update({ where: { id }, data: { isRead: true } });
+    return this.prisma.notification.update({
+      where: { id },
+      data: { isRead: true },
+    });
   }
 
   async markAllRead(userId: number) {

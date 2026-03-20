@@ -9,12 +9,13 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   app.use(cookieParser());
+  const frontendUrl: string = config.getOrThrow('FRONTEND_URL');
   app.enableCors({
-    origin: config.getOrThrow('FRONTEND_URL'),
+    origin: frontendUrl,
     credentials: true,
   });
 
-  const port = config.get('PORT') || 4000;
+  const port: number = config.get<number>('PORT') ?? 4000;
   await app.listen(port);
 }
-bootstrap();
+void bootstrap();
