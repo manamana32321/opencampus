@@ -45,6 +45,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env['NODE_ENV'] === 'production',
       sameSite: 'lax',
+      domain: process.env['NODE_ENV'] === 'production' ? '.json-server.win' : undefined,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
     });
 
@@ -73,6 +74,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env['NODE_ENV'] === 'production',
       sameSite: 'lax',
+      domain: process.env['NODE_ENV'] === 'production' ? '.json-server.win' : undefined,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
