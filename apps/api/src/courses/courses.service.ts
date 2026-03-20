@@ -56,14 +56,19 @@ export class CoursesService {
       const semesterName = this.deriveSemesterName(cc.startAt, cc.term?.name);
       if (!semesterName) continue;
 
+      const termStart = cc.term?.startAt ?? cc.startAt;
+      const termEnd = cc.term?.endAt ?? cc.endAt;
       const semester = await this.prisma.semester.upsert({
         where: { userId_name: { userId, name: semesterName } },
-        update: {},
+        update: {
+          startDate: termStart ? new Date(termStart) : undefined,
+          endDate: termEnd ? new Date(termEnd) : undefined,
+        },
         create: {
           userId,
           name: semesterName,
-          startDate: cc.startAt ? new Date(cc.startAt) : null,
-          endDate: cc.endAt ? new Date(cc.endAt) : null,
+          startDate: termStart ? new Date(termStart) : null,
+          endDate: termEnd ? new Date(termEnd) : null,
         },
       });
 
