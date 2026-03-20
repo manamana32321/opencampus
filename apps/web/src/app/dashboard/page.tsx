@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 
 interface Course {
@@ -13,16 +14,30 @@ interface Course {
 }
 
 export default function DashboardPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  return (
+    <Suspense fallback={<div className="px-6 py-8"><div className="h-8 w-32 bg-zinc-800 rounded animate-pulse" /></div>}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const semesterFilter = searchParams.get('semester');
 
   useEffect(() => {
     apiFetch<Course[]>('/courses')
-      .then(setCourses)
+      .then(setAllCourses)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const courses = semesterFilter
+    ? allCourses.filter((c) => c.semester?.name === semesterFilter)
+    : allCourses;
 
   return (
     <div className="px-6 py-8 max-w-5xl mx-auto">

@@ -17,6 +17,17 @@ interface AuthRequest extends Request {
   user: { userId: number };
 }
 
+@Controller('semesters')
+@UseGuards(AuthGuard)
+export class SemestersController {
+  constructor(private courses: CoursesService) {}
+
+  @Get()
+  findAll(@Req() req: AuthRequest) {
+    return this.courses.findSemesters(req.user.userId);
+  }
+}
+
 @Controller('courses')
 @UseGuards(AuthGuard)
 export class CoursesController {

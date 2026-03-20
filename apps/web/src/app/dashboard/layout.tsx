@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { NotificationBell } from '@/components/notification-bell';
+import { SemesterSelect } from '@/components/semester-select';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -22,7 +24,12 @@ export default function DashboardLayout({
           <span className="text-base font-semibold tracking-tight">OpenCampus</span>
           <NotificationBell />
         </div>
-        <nav className="flex flex-col gap-1 px-3 py-4">
+        <div className="px-3 pt-4 pb-2">
+          <Suspense fallback={<div className="h-8 rounded bg-zinc-800 animate-pulse" />}>
+            <SemesterSelect />
+          </Suspense>
+        </div>
+        <nav className="flex flex-col gap-1 px-3 py-2">
           {navLinks.map((link) => (
             <Link
               key={link.href}

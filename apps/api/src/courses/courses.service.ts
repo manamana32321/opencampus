@@ -17,6 +17,13 @@ export class CoursesService {
     });
   }
 
+  async findSemesters(userId: number) {
+    return this.prisma.semester.findMany({
+      where: { userId },
+      orderBy: { name: 'desc' },
+    });
+  }
+
   async findById(id: number, userId: number) {
     return this.prisma.course.findFirstOrThrow({
       where: { id, userId },
