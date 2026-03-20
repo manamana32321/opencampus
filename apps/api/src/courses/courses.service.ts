@@ -1,9 +1,12 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CanvasClient } from '@opencampus/canvas';
+import type { Module } from '@opencampus/canvas';
 
 @Injectable()
 export class CoursesService {
+  private readonly logger = new Logger(CoursesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async findAllByUser(userId: number) {
@@ -82,9 +85,47 @@ export class CoursesService {
             },
           });
 
+      // Sync modules → course_weeks
+      try {
+        const modules = await canvas.getModules(cc.id);
+        await this.syncWeeksFromModules(userId, course.id, modules);
+      } catch {
+        this.logger.warn(`Failed to sync modules for course ${cc.name}`);
+      }
+
       results.push(course);
     }
     return results;
+  }
+
+  private async syncWeeksFromModules(
+    userId: number,
+    courseId: number,
+    modules: Module[],
+  ) {
+    for (const mod of modules) {
+      const weekNum = this.parseWeekNumber(mod.name);
+      if (weekNum === null) continue;
+
+      await this.prisma.courseWeek.upsert({
+        where: {
+          courseId_userId_week: { courseId, userId, week: weekNum },
+        },
+        update: {},
+        create: {
+          courseId,
+          userId,
+          week: weekNum,
+          dateStart: mod.unlockAt ? new Date(mod.unlockAt) : null,
+        },
+      });
+    }
+  }
+
+  private parseWeekNumber(name: string): number | null {
+    // "1주차", "2주차", "Week 1", "Week 2" etc.
+    const match = name.match(/(\d+)\s*주차/) ?? name.match(/[Ww]eek\s*(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
   }
 
   private deriveSemesterName(
