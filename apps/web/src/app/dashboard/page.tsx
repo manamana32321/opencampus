@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useQueryState, parseAsString } from 'nuqs';
 import { apiFetch } from '@/lib/api';
 
 interface Course {
@@ -11,6 +11,13 @@ interface Course {
   semester?: { id: number; name: string };
   semesterId: number;
   _count?: { materials: number };
+}
+
+function getDefaultSemesterName(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  return month >= 2 && month <= 7 ? `${year}-1` : `${year}-2`;
 }
 
 export default function DashboardPage() {
@@ -25,8 +32,10 @@ function DashboardContent() {
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  const semesterFilter = searchParams.get('semester');
+  const [semesterFilter] = useQueryState(
+    'semester',
+    parseAsString.withDefault(getDefaultSemesterName()),
+  );
 
   useEffect(() => {
     apiFetch<Course[]>('/courses')

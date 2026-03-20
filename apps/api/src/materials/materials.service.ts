@@ -79,11 +79,17 @@ export class MaterialsService {
   }
 
   async upload(userId: number, file: Express.Multer.File) {
+    // Multer decodes filenames as latin1; re-encode to recover UTF-8 (e.g. Korean)
+    const originalFilename = Buffer.from(
+      file.originalname,
+      'latin1',
+    ).toString('utf8');
+
     // 1. Run inference
-    const inference = await this.inference.infer(userId, file.originalname);
+    const inference = await this.inference.infer(userId, originalFilename);
 
     // 2. Generate S3 key
-    const ext = file.originalname.split('.').pop() ?? 'bin';
+    const ext = originalFilename.split('.').pop() ?? 'bin';
     const uuid = randomUUID().slice(0, 8);
     const key =
       inference.courseId && inference.week
@@ -124,7 +130,7 @@ export class MaterialsService {
         type: inference.type ?? 'unknown',
         session: inference.session,
         filePath,
-        originalFilename: file.originalname,
+        originalFilename,
         aiConfidence: inference.confidence,
         partNumber: inference.partNumber ?? 1,
         groupId: inference.partNumber ? randomUUID() : null,
@@ -214,8 +220,14 @@ export class MaterialsService {
     userId: number,
     file: Express.Multer.File,
   ) {
+    // Multer decodes filenames as latin1; re-encode to recover UTF-8 (e.g. Korean)
+    const originalFilename = Buffer.from(
+      file.originalname,
+      'latin1',
+    ).toString('utf8');
+
     const parent = await this.findById(parentId, userId);
-    const ext = file.originalname.split('.').pop() ?? 'jpg';
+    const ext = originalFilename.split('.').pop() ?? 'jpg';
     const uuid = randomUUID().slice(0, 8);
     const key = `materials/${parent.courseWeek.courseId}/photos/${uuid}.${ext}`;
     const filePath = await this.storage.upload(key, file.buffer, file.mimetype);
@@ -227,7 +239,7 @@ export class MaterialsService {
         parentId,
         type: 'photo',
         filePath,
-        originalFilename: file.originalname,
+        originalFilename,
       },
     });
   }

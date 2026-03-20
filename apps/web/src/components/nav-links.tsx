@@ -1,11 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useQueryState, parseAsString } from 'nuqs';
 
 interface NavLink {
   href: string;
   label: string;
+}
+
+function getDefaultSemesterName(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  return month >= 2 && month <= 7 ? `${year}-1` : `${year}-2`;
 }
 
 export function NavLinks({
@@ -17,8 +24,10 @@ export function NavLinks({
   className?: string;
   linkClassName?: string;
 }) {
-  const searchParams = useSearchParams();
-  const semester = searchParams.get('semester');
+  const [semester] = useQueryState(
+    'semester',
+    parseAsString.withDefault(getDefaultSemesterName()),
+  );
 
   function buildHref(base: string): string {
     if (!semester) return base;

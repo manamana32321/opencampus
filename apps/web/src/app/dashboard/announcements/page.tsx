@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useQueryState, parseAsString } from 'nuqs';
 import { apiFetch } from '@/lib/api';
 
 interface Announcement {
@@ -49,6 +49,13 @@ function formatAbsoluteDate(dateStr: string): string {
   });
 }
 
+function getDefaultSemesterName(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  return month >= 2 && month <= 7 ? `${year}-1` : `${year}-2`;
+}
+
 export default function AnnouncementsPage() {
   return (
     <Suspense fallback={<div className="px-6 py-8"><div className="h-8 w-32 bg-zinc-800 rounded animate-pulse" /></div>}>
@@ -65,8 +72,10 @@ function AnnouncementsContent() {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const searchParams = useSearchParams();
-  const semesterFilter = searchParams.get('semester');
+  const [semesterFilter] = useQueryState(
+    'semester',
+    parseAsString.withDefault(getDefaultSemesterName()),
+  );
 
   useEffect(() => {
     Promise.all([
