@@ -5,34 +5,60 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 
-interface MaterialDetail {
-  id: string;
-  name: string;
+interface CourseWeekWithCourse {
+  id: number;
+  courseId: number;
+  week: number;
+  dateStart: string | null;
+  course: {
+    id: number;
+    name: string;
+  };
+}
+
+interface Job {
+  id: number;
   type: string;
-  size: number;
-  mimeType: string;
-  courseId?: string;
-  courseName?: string;
-  week?: number;
-  session?: number;
-  date?: string;
-  transcript?: string;
-  extractedText?: string;
-  children?: ChildMaterial[];
-  createdAt?: string;
+  status: string;
+  progress: number;
+  error: string | null;
 }
 
 interface ChildMaterial {
-  id: string;
-  name: string;
+  id: number;
+  originalFilename: string | null;
   type: string;
-  url?: string;
+  filePath: string;
+}
+
+interface MaterialDetail {
+  id: number;
+  originalFilename: string | null;
+  type: string;
+  filePath: string;
+  session: number | null;
+  courseWeekId: number;
+  courseWeek: CourseWeekWithCourse;
+  transcript: string | null;
+  extractedText: string | null;
+  summary: string | null;
+  durationMin: number | null;
+  aiConfidence: number | null;
+  children: ChildMaterial[];
+  jobs: Job[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Semester {
+  id: number;
+  name: string;
 }
 
 interface Course {
-  id: string;
+  id: number;
   name: string;
-  semester: string;
+  semester: Semester;
 }
 
 const MATERIAL_TYPES = [
@@ -43,13 +69,6 @@ const MATERIAL_TYPES = [
   { value: 'ppt', label: 'PPT' },
   { value: 'note', label: 'Note' },
 ];
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
 
 function MetaRow({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === '') return null;
@@ -100,11 +119,11 @@ export default function MaterialDetailPage() {
 
   const startEdit = () => {
     if (!material) return;
-    setEditCourseId(material.courseId ?? '');
-    setEditWeek(material.week?.toString() ?? '');
+    setEditCourseId(material.courseWeek?.courseId?.toString() ?? '');
+    setEditWeek(material.courseWeek?.week?.toString() ?? '');
     setEditSession(material.session?.toString() ?? '');
     setEditType(material.type ?? '');
-    setEditDate(material.date ?? '');
+    setEditDate(material.courseWeek?.dateStart ?? '');
     setEditError(null);
     setEditing(true);
   };
@@ -120,7 +139,7 @@ export default function MaterialDetailPage() {
     setEditError(null);
     try {
       const body: Record<string, unknown> = {};
-      if (editCourseId) body.courseId = editCourseId;
+      if (editCourseId) body.courseId = parseInt(editCourseId, 10);
       if (editWeek) body.week = parseInt(editWeek, 10);
       if (editSession) body.session = parseInt(editSession, 10);
       if (editType) body.type = editType;
@@ -190,9 +209,9 @@ export default function MaterialDetailPage() {
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold truncate">{material.name}</h1>
+              <h1 className="text-2xl font-semibold truncate">{material.originalFilename ?? `Material #${material.id}`}</h1>
               <p className="mt-1 text-xs text-zinc-500">
-                {material.mimeType} &middot; {formatSize(material.size)}
+                {material.type}
                 {material.createdAt && (
                   <> &middot; {new Date(material.createdAt).toLocaleDateString()}</>
                 )}
@@ -247,11 +266,11 @@ export default function MaterialDetailPage() {
 
             {!editing ? (
               <div>
-                <MetaRow label="Course" value={material.courseName ?? material.courseId} />
-                <MetaRow label="Week" value={material.week} />
+                <MetaRow label="Course" value={material.courseWeek?.course?.name} />
+                <MetaRow label="Week" value={material.courseWeek?.week === 0 ? undefined : material.courseWeek?.week} />
                 <MetaRow label="Session" value={material.session} />
                 <MetaRow label="Type" value={material.type} />
-                <MetaRow label="Date" value={material.date} />
+                <MetaRow label="Date" value={material.courseWeek?.dateStart} />
               </div>
             ) : (
               <div className="space-y-4">
@@ -266,7 +285,7 @@ export default function MaterialDetailPage() {
                     <option value="">— Select a course —</option>
                     {courses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.semester})
+                        {c.name} ({c.semester.name})
                       </option>
                     ))}
                   </select>
@@ -393,10 +412,10 @@ export default function MaterialDetailPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {material.children.map((child) => (
                   <div key={child.id} className="rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden">
-                    {child.url ? (
+                    {child.filePath ? (
                       <img
-                        src={child.url}
-                        alt={child.name}
+                        src={child.filePath}
+                        alt={child.originalFilename ?? 'Photo'}
                         className="w-full h-32 object-cover"
                       />
                     ) : (
@@ -407,7 +426,7 @@ export default function MaterialDetailPage() {
                       </div>
                     )}
                     <div className="px-2 py-1.5">
-                      <p className="text-xs text-zinc-400 truncate">{child.name}</p>
+                      <p className="text-xs text-zinc-400 truncate">{child.originalFilename ?? `Photo #${child.id}`}</p>
                     </div>
                   </div>
                 ))}

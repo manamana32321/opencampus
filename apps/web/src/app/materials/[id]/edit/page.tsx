@@ -8,16 +8,25 @@ import TranscriptEditor from '@/components/transcript-editor';
 import TranscriptPreview from '@/components/transcript-preview';
 import JobStatus from '@/components/job-status';
 
-interface MaterialDetail {
-  id: string;
-  name: string;
+interface Job {
+  id: number;
   type: string;
-  size: number;
-  mimeType: string;
-  transcript?: string;
-  extractedText?: string;
-  jobId?: string;
-  jobStatus?: 'pending' | 'processing' | 'done' | 'failed';
+  status: string;
+  progress: number;
+  error: string | null;
+}
+
+interface MaterialDetail {
+  id: number;
+  originalFilename: string | null;
+  type: string;
+  filePath: string;
+  transcript: string | null;
+  extractedText: string | null;
+  summary: string | null;
+  jobs: Job[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function MaterialEditPage() {
@@ -124,8 +133,10 @@ export default function MaterialEditPage() {
     }
   };
 
-  const isProcessing =
-    material?.jobStatus === 'pending' || material?.jobStatus === 'processing';
+  const activeJob = material?.jobs?.find(
+    (j) => j.status === 'pending' || j.status === 'processing',
+  );
+  const isProcessing = !!activeJob;
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100">
@@ -152,7 +163,7 @@ export default function MaterialEditPage() {
             {loading ? (
               <span className="inline-block h-4 w-48 rounded bg-zinc-800 animate-pulse" />
             ) : (
-              material?.name ?? 'Edit Transcript'
+              material?.originalFilename ?? 'Edit Transcript'
             )}
           </h1>
         </div>
@@ -227,9 +238,9 @@ export default function MaterialEditPage() {
       {!loading && !fetchError && material && (
         <div className="flex flex-col flex-1 min-h-0 gap-3 p-4">
           {/* Job status banner */}
-          {isProcessing && material.jobId && (
+          {isProcessing && activeJob && (
             <div className="shrink-0">
-              <JobStatus jobId={material.jobId} />
+              <JobStatus jobId={String(activeJob.id)} />
             </div>
           )}
 

@@ -4,13 +4,31 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 
 interface Assignment {
-  id: string;
+  id: number;
   title: string;
-  courseName: string;
+  courseId: number;
   dueAt: string | null;
-  status: 'pending' | 'submitted' | 'graded' | 'late' | 'missing';
-  points: number | null;
+  status: string;
+  score: number | null;
+  grade: string | null;
   pointsPossible: number | null;
+  submissionTypes: string[];
+  canvasUrl: string | null;
+  submittedAt: string | null;
+  syncedAt: string | null;
+  createdAt: string;
+}
+
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface Course {
+  id: number;
+  name: string;
 }
 
 function timeAgo(dateStr: string): string {
@@ -44,7 +62,7 @@ function getCardColor(assignment: Assignment): string {
   return 'border-zinc-800 bg-zinc-900';
 }
 
-const STATUS_STYLES: Record<Assignment['status'], string> = {
+const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-zinc-800 text-zinc-300',
   submitted: 'bg-blue-500/15 text-blue-400',
   graded: 'bg-green-500/15 text-green-400',
@@ -54,14 +72,21 @@ const STATUS_STYLES: Record<Assignment['status'], string> = {
 
 export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [courseMap, setCourseMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    apiFetch<Assignment[]>('/assignments')
-      .then((data) => {
-        const sorted = [...data].sort((a, b) => {
+    Promise.all([
+      apiFetch<PaginatedResponse<Assignment>>('/assignments?limit=100'),
+      apiFetch<Course[]>('/courses'),
+    ])
+      .then(([data, courses]) => {
+        const map: Record<number, string> = {};
+        for (const c of courses) map[c.id] = c.name;
+        setCourseMap(map);
+        const sorted = [...data.items].sort((a, b) => {
           if (!a.dueAt) return 1;
           if (!b.dueAt) return -1;
           return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
@@ -76,8 +101,8 @@ export default function AssignmentsPage() {
     setSyncing(true);
     try {
       await apiFetch('/assignments/sync', { method: 'POST' });
-      const data = await apiFetch<Assignment[]>('/assignments');
-      const sorted = [...data].sort((a, b) => {
+      const data = await apiFetch<PaginatedResponse<Assignment>>('/assignments?limit=100');
+      const sorted = [...data.items].sort((a, b) => {
         if (!a.dueAt) return 1;
         if (!b.dueAt) return -1;
         return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
@@ -138,15 +163,15 @@ export default function AssignmentsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-snug truncate">{assignment.title}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">{assignment.courseName}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">{courseMap[assignment.courseId] ?? `Course #${assignment.courseId}`}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {assignment.pointsPossible != null && (
                     <span className="text-xs text-zinc-500 font-mono">
-                      {assignment.points != null ? `${assignment.points}/` : ''}{assignment.pointsPossible}pts
+                      {assignment.score != null ? `${assignment.score}/` : ''}{assignment.pointsPossible}pts
                     </span>
                   )}
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[assignment.status]}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[assignment.status] ?? 'bg-zinc-800 text-zinc-300'}`}>
                     {assignment.status}
                   </span>
                 </div>

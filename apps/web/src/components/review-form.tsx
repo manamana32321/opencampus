@@ -3,27 +3,48 @@
 import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
 
+interface CourseWeekWithCourse {
+  id: number;
+  courseId: number;
+  week: number;
+  course: {
+    id: number;
+    name: string;
+  };
+}
+
 interface Material {
-  id: string;
-  name: string;
+  id: number;
+  originalFilename: string | null;
   type: string;
-  size: number;
-  mimeType: string;
+  filePath: string;
+  session: number | null;
+  courseWeekId: number;
+  courseWeek: CourseWeekWithCourse;
+  children: Material[];
+  aiConfidence: number | null;
+  createdAt: string;
 }
 
 interface Inference {
-  courseId?: string;
+  courseId?: number;
   week?: number;
   session?: number;
   type?: string;
   date?: string;
   confidence?: number;
+  partNumber?: number;
+}
+
+interface Semester {
+  id: number;
+  name: string;
 }
 
 interface Course {
-  id: string;
+  id: number;
   name: string;
-  semester: string;
+  semester: Semester;
 }
 
 interface ReviewFormProps {
@@ -42,13 +63,6 @@ const MATERIAL_TYPES = [
   { value: 'ppt', label: 'PPT' },
   { value: 'note', label: 'Note' },
 ];
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
 
 function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
@@ -80,7 +94,7 @@ export default function ReviewForm({
   onSave,
   onSkip,
 }: ReviewFormProps) {
-  const [courseId, setCourseId] = useState(inference.courseId ?? '');
+  const [courseId, setCourseId] = useState(inference.courseId?.toString() ?? '');
   const [week, setWeek] = useState(inference.week?.toString() ?? '');
   const [session, setSession] = useState(inference.session?.toString() ?? '');
   const [type, setType] = useState(inference.type ?? material.type ?? '');
@@ -95,7 +109,7 @@ export default function ReviewForm({
     setError(null);
     try {
       const body: Record<string, unknown> = {};
-      if (courseId) body.courseId = courseId;
+      if (courseId) body.courseId = parseInt(courseId, 10);
       if (week) body.week = parseInt(week, 10);
       if (session) body.session = parseInt(session, 10);
       if (type) body.type = type;
@@ -123,7 +137,7 @@ export default function ReviewForm({
       );
       const inf = result.inference;
       setCurrentInference(inf);
-      if (inf.courseId) setCourseId(inf.courseId);
+      if (inf.courseId) setCourseId(inf.courseId.toString());
       if (inf.week != null) setWeek(inf.week.toString());
       if (inf.session != null) setSession(inf.session.toString());
       if (inf.type) setType(inf.type);
@@ -158,7 +172,7 @@ export default function ReviewForm({
               <option value="">— Select a course —</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.semester})
+                  {c.name} ({c.semester.name})
                 </option>
               ))}
             </select>
@@ -240,15 +254,15 @@ export default function ReviewForm({
           <div className="space-y-2 text-sm">
             <div className="flex gap-2">
               <span className="text-zinc-500 w-16 shrink-0">Name</span>
-              <span className="text-zinc-200 truncate">{material.name}</span>
+              <span className="text-zinc-200 truncate">{material.originalFilename ?? '—'}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-zinc-500 w-16 shrink-0">Type</span>
-              <span className="text-zinc-200">{material.mimeType || '—'}</span>
+              <span className="text-zinc-200">{material.type || '—'}</span>
             </div>
             <div className="flex gap-2">
-              <span className="text-zinc-500 w-16 shrink-0">Size</span>
-              <span className="text-zinc-200">{formatSize(material.size)}</span>
+              <span className="text-zinc-500 w-16 shrink-0">Course</span>
+              <span className="text-zinc-200">{material.courseWeek?.course?.name ?? '—'}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-zinc-500 w-16 shrink-0">ID</span>

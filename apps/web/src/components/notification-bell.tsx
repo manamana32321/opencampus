@@ -5,19 +5,22 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 
 interface Notification {
-  id: string;
+  id: number;
   type: string;
-  title: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  link?: string;
+  title: string | null;
+  message: string | null;
+  isRead: boolean;
+  sentAt: string;
+  referenceType: string | null;
+  referenceId: number | null;
 }
 
-interface NotificationMeta {
-  total: number;
-  unread: number;
+interface PaginatedNotifications {
   items: Notification[];
+  total: number;
+  page: number;
+  limit: number;
+  unreadCount: number;
 }
 
 function timeAgo(dateStr: string): string {
@@ -39,14 +42,9 @@ export function NotificationBell() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const data = await apiFetch<NotificationMeta | Notification[]>('/notifications?limit=5');
-      if (Array.isArray(data)) {
-        setRecentNotifications(data.slice(0, 5));
-        setUnreadCount(data.filter((n) => !n.read).length);
-      } else {
-        setRecentNotifications(data.items ?? []);
-        setUnreadCount(data.unread ?? 0);
-      }
+      const data = await apiFetch<PaginatedNotifications>('/notifications?limit=5');
+      setRecentNotifications(data.items ?? []);
+      setUnreadCount(data.unreadCount ?? 0);
     } catch {
       // silently ignore polling errors
     }
@@ -77,11 +75,11 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  async function handleNotificationClick(id: string) {
+  async function handleNotificationClick(id: number) {
     try {
       await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
       setRecentNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch {
@@ -125,32 +123,36 @@ export function NotificationBell() {
           ) : (
             <ul className="divide-y divide-zinc-800">
               {recentNotifications.map((notification) => {
+                const link = notification.referenceType && notification.referenceId
+                  ? `/${notification.referenceType}s/${notification.referenceId}`
+                  : undefined;
+
                 const inner = (
                   <div
                     className={`flex items-start gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors cursor-pointer ${
-                      notification.read ? '' : 'bg-zinc-800/40'
+                      notification.isRead ? '' : 'bg-zinc-800/40'
                     }`}
                     onClick={() => handleNotificationClick(notification.id)}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className={`text-xs leading-snug ${notification.read ? 'text-zinc-400' : 'font-medium text-white'}`}>
-                        {notification.title}
+                      <p className={`text-xs leading-snug ${notification.isRead ? 'text-zinc-400' : 'font-medium text-white'}`}>
+                        {notification.title ?? 'Notification'}
                       </p>
-                      <p className="mt-0.5 text-xs text-zinc-500 truncate">{notification.message}</p>
+                      <p className="mt-0.5 text-xs text-zinc-500 truncate">{notification.message ?? ''}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="text-[10px] text-zinc-600">{timeAgo(notification.createdAt)}</span>
-                      {!notification.read && (
+                      <span className="text-[10px] text-zinc-600">{timeAgo(notification.sentAt)}</span>
+                      {!notification.isRead && (
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                       )}
                     </div>
                   </div>
                 );
 
-                if (notification.link) {
+                if (link) {
                   return (
                     <li key={notification.id}>
-                      <Link href={notification.link} onClick={() => setOpen(false)}>
+                      <Link href={link} onClick={() => setOpen(false)}>
                         {inner}
                       </Link>
                     </li>

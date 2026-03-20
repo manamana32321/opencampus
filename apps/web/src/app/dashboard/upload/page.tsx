@@ -5,24 +5,38 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import UploadDropzone from '@/components/upload-dropzone';
 import ReviewForm from '@/components/review-form';
-import JobStatus from '@/components/job-status';
+
+interface CourseWeekWithCourse {
+  id: number;
+  courseId: number;
+  week: number;
+  course: {
+    id: number;
+    name: string;
+  };
+}
 
 interface Material {
-  id: string;
-  name: string;
+  id: number;
+  originalFilename: string | null;
   type: string;
-  size: number;
-  mimeType: string;
-  jobId?: string;
+  filePath: string;
+  session: number | null;
+  courseWeekId: number;
+  courseWeek: CourseWeekWithCourse;
+  children: Material[];
+  aiConfidence: number | null;
+  createdAt: string;
 }
 
 interface Inference {
-  courseId?: string;
+  courseId?: number;
   week?: number;
   session?: number;
   type?: string;
   date?: string;
   confidence?: number;
+  partNumber?: number;
 }
 
 interface UploadResult {
@@ -30,10 +44,15 @@ interface UploadResult {
   inference: Inference;
 }
 
-interface Course {
-  id: string;
+interface Semester {
+  id: number;
   name: string;
-  semester: string;
+}
+
+interface Course {
+  id: number;
+  name: string;
+  semester: Semester;
 }
 
 type Step = 'dropzone' | 'processing' | 'review' | 'success';
@@ -52,11 +71,8 @@ export default function UploadPage() {
 
   const handleUploadSuccess = (result: UploadResult) => {
     setUploadResult(result);
-    if (result.material.jobId) {
-      setStep('processing');
-    } else {
-      setStep('review');
-    }
+    // Upload response doesn't include job info; go straight to review
+    setStep('review');
   };
 
   const handleJobDone = () => {
@@ -149,14 +165,11 @@ export default function UploadPage() {
         <UploadDropzone onUploadSuccess={handleUploadSuccess} />
       )}
 
-      {step === 'processing' && uploadResult?.material.jobId && (
+      {step === 'processing' && uploadResult && (
         <div className="space-y-4">
           <p className="text-sm text-zinc-400">
             Your file is being processed. This may take a moment.
           </p>
-          <JobStatus
-            jobId={uploadResult.material.jobId}
-          />
           <button
             type="button"
             onClick={handleJobDone}
@@ -186,7 +199,7 @@ export default function UploadPage() {
           </div>
           <h2 className="text-lg font-semibold text-white">Saved successfully</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            {savedMaterial.name} has been added to your materials.
+            {savedMaterial.originalFilename ?? 'Material'} has been added to your materials.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link

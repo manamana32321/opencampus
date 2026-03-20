@@ -6,26 +6,35 @@ import { apiFetch } from '@/lib/api';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface UserMe {
-  id: string;
-  name: string;
+  id: number;
+  name: string | null;
   email: string;
+  picture: string | null;
   hasCanvasToken: boolean;
+  createdAt: string;
 }
 
 interface NotificationSetting {
+  id: number;
   type: string;
   enabled: boolean;
-  advance_minutes: number;
+  advanceMinutes: number;
   channels: string[];
-  webhookUrl?: string;
+  webhookUrl: string | null;
+}
+
+interface Semester {
+  id: number;
+  name: string;
 }
 
 interface Course {
-  id: string;
+  id: number;
   name: string;
-  shortName: string;
-  notes: string;
+  shortName: string | null;
+  notes: string | null;
   metadata: Record<string, unknown>;
+  semester: Semester;
 }
 
 // ─── Canvas Integration Section ───────────────────────────────────────────────
@@ -161,7 +170,7 @@ function NotificationSettingRow({ setting, onSaved }: {
   onSaved: (updated: NotificationSetting) => void;
 }) {
   const [enabled, setEnabled] = useState(setting.enabled);
-  const [advanceMinutes, setAdvanceMinutes] = useState(String(setting.advance_minutes));
+  const [advanceMinutes, setAdvanceMinutes] = useState(String(setting.advanceMinutes));
   const [channels, setChannels] = useState<string[]>(setting.channels);
   const [webhookUrl, setWebhookUrl] = useState(setting.webhookUrl ?? '');
   const [saving, setSaving] = useState(false);
@@ -182,7 +191,7 @@ function NotificationSettingRow({ setting, onSaved }: {
         method: 'PATCH',
         body: JSON.stringify({
           enabled,
-          advance_minutes: parseInt(advanceMinutes, 10) || 0,
+          advanceMinutes: parseInt(advanceMinutes, 10) || 0,
           channels,
           webhookUrl: channels.includes('webhook') ? webhookUrl : undefined,
         }),
@@ -366,12 +375,12 @@ function CourseRow({ course, onSaved }: {
     setSaving(true);
     setStatus('idle');
     try {
-      const updated = await apiFetch<Course>(`/courses/${course.id}`, {
+      const updated = await apiFetch<Partial<Course>>(`/courses/${course.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ shortName, notes, metadata }),
       });
       setStatus('ok');
-      onSaved(updated);
+      onSaved({ ...course, ...updated });
       setTimeout(() => setStatus('idle'), 2000);
     } catch (err: unknown) {
       setStatus('error');

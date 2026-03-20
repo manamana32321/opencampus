@@ -3,27 +3,42 @@
 import { useCallback, useRef, useState } from 'react';
 import { apiUpload } from '@/lib/api';
 
-interface UploadResult {
-  material: Material;
-  inference: Inference;
+interface CourseWeekWithCourse {
+  id: number;
+  courseId: number;
+  week: number;
+  course: {
+    id: number;
+    name: string;
+  };
 }
 
 interface Material {
-  id: string;
-  name: string;
+  id: number;
+  originalFilename: string | null;
   type: string;
-  size: number;
-  mimeType: string;
-  jobId?: string;
+  filePath: string;
+  session: number | null;
+  courseWeekId: number;
+  courseWeek: CourseWeekWithCourse;
+  children: Material[];
+  aiConfidence: number | null;
+  createdAt: string;
 }
 
 interface Inference {
-  courseId?: string;
+  courseId?: number;
   week?: number;
   session?: number;
   type?: string;
   date?: string;
   confidence?: number;
+  partNumber?: number;
+}
+
+interface UploadResult {
+  material: Material;
+  inference: Inference;
 }
 
 interface UploadDropzoneProps {

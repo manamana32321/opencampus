@@ -4,13 +4,27 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 
 interface Announcement {
-  id: string;
+  id: number;
   title: string;
-  courseName: string;
-  author: string;
-  postedAt: string;
-  message: string;
-  read: boolean;
+  courseId: number;
+  author: string | null;
+  postedAt: string | null;
+  message: string | null;
+  isRead: boolean;
+  canvasUrl: string | null;
+  createdAt: string;
+}
+
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface Course {
+  id: number;
+  name: string;
 }
 
 function timeAgo(dateStr: string): string {
@@ -35,16 +49,27 @@ function formatAbsoluteDate(dateStr: string): string {
 
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [courseMap, setCourseMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
-    apiFetch<Announcement[]>('/announcements')
-      .then((data) => {
-        const sorted = [...data].sort(
-          (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
+    Promise.all([
+      apiFetch<PaginatedResponse<Announcement>>('/announcements?limit=100'),
+      apiFetch<Course[]>('/courses'),
+    ])
+      .then(([data, courses]) => {
+        const map: Record<number, string> = {};
+        for (const c of courses) map[c.id] = c.name;
+        setCourseMap(map);
+        const sorted = [...data.items].sort(
+          (a, b) => {
+            const aTime = a.postedAt ? new Date(a.postedAt).getTime() : 0;
+            const bTime = b.postedAt ? new Date(b.postedAt).getTime() : 0;
+            return bTime - aTime;
+          }
         );
         setAnnouncements(sorted);
       })
@@ -52,7 +77,7 @@ export default function AnnouncementsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleClick(id: string) {
+  async function handleClick(id: number) {
     const announcement = announcements.find((a) => a.id === id);
     if (!announcement) return;
 
@@ -63,11 +88,11 @@ export default function AnnouncementsPage() {
 
     setExpandedId(id);
 
-    if (!announcement.read) {
+    if (!announcement.isRead) {
       try {
         await apiFetch(`/announcements/${id}/read`, { method: 'PATCH' });
         setAnnouncements((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, read: true } : a))
+          prev.map((a) => (a.id === id ? { ...a, isRead: true } : a))
         );
       } catch {
         // ignore mark-read errors
@@ -79,9 +104,13 @@ export default function AnnouncementsPage() {
     setSyncing(true);
     try {
       await apiFetch('/announcements/sync', { method: 'POST' });
-      const data = await apiFetch<Announcement[]>('/announcements');
-      const sorted = [...data].sort(
-        (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
+      const data = await apiFetch<PaginatedResponse<Announcement>>('/announcements?limit=100');
+      const sorted = [...data.items].sort(
+        (a, b) => {
+          const aTime = a.postedAt ? new Date(a.postedAt).getTime() : 0;
+          const bTime = b.postedAt ? new Date(b.postedAt).getTime() : 0;
+          return bTime - aTime;
+        }
       );
       setAnnouncements(sorted);
     } catch (err: unknown) {
@@ -143,7 +172,7 @@ export default function AnnouncementsPage() {
               >
                 {/* Unread indicator */}
                 <span className="mt-1.5 shrink-0">
-                  {!announcement.read ? (
+                  {!announcement.isRead ? (
                     <span className="block h-2 w-2 rounded-full bg-blue-500" />
                   ) : (
                     <span className="block h-2 w-2 rounded-full bg-transparent" />
@@ -152,15 +181,17 @@ export default function AnnouncementsPage() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className={`text-sm leading-snug ${announcement.read ? 'text-zinc-300' : 'font-medium text-white'}`}>
+                    <p className={`text-sm leading-snug ${announcement.isRead ? 'text-zinc-300' : 'font-medium text-white'}`}>
                       {announcement.title}
                     </p>
-                    <span className="shrink-0 text-xs text-zinc-500">{timeAgo(announcement.postedAt)}</span>
+                    {announcement.postedAt && (
+                      <span className="shrink-0 text-xs text-zinc-500">{timeAgo(announcement.postedAt)}</span>
+                    )}
                   </div>
                   <div className="mt-0.5 flex items-center gap-2">
-                    <span className="text-xs text-zinc-500">{announcement.courseName}</span>
+                    <span className="text-xs text-zinc-500">{courseMap[announcement.courseId] ?? `Course #${announcement.courseId}`}</span>
                     <span className="text-zinc-700">·</span>
-                    <span className="text-xs text-zinc-600">{announcement.author}</span>
+                    <span className="text-xs text-zinc-600">{announcement.author ?? 'Unknown'}</span>
                   </div>
                 </div>
 
@@ -178,10 +209,11 @@ export default function AnnouncementsPage() {
               {expandedId === announcement.id && (
                 <div className="border-t border-zinc-800 px-4 py-4">
                   <p className="text-xs text-zinc-500 mb-2">
-                    Posted {formatAbsoluteDate(announcement.postedAt)} by {announcement.author}
+                    {announcement.postedAt ? `Posted ${formatAbsoluteDate(announcement.postedAt)}` : 'Posted'}
+                    {announcement.author ? ` by ${announcement.author}` : ''}
                   </p>
                   <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                    {announcement.message}
+                    {announcement.message ?? ''}
                   </div>
                 </div>
               )}

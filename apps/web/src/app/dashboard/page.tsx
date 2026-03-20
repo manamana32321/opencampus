@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 
 interface Course {
-  id: string;
+  id: number;
   name: string;
-  semester: string;
-  materialCount: number;
+  semester?: { id: number; name: string };
+  semesterId: number;
+  _count?: { materials: number };
 }
 
 export default function DashboardPage() {
@@ -70,11 +71,13 @@ export default function DashboardPage() {
                 <h2 className="text-sm font-medium leading-snug group-hover:text-white transition-colors line-clamp-2">
                   {course.name}
                 </h2>
-                <span className="shrink-0 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-400">
-                  {course.materialCount}
-                </span>
+                {course._count?.materials != null && (
+                  <span className="shrink-0 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-400">
+                    {course._count.materials}
+                  </span>
+                )}
               </div>
-              <p className="mt-2 text-xs text-zinc-500">{course.semester}</p>
+              <p className="mt-2 text-xs text-zinc-500">{course.semester?.name ?? ''}</p>
             </Link>
           ))}
         </div>

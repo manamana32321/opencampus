@@ -5,13 +5,22 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 
 interface Notification {
-  id: string;
+  id: number;
   type: string;
-  title: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  link?: string;
+  title: string | null;
+  message: string | null;
+  isRead: boolean;
+  sentAt: string;
+  referenceType: string | null;
+  referenceId: number | null;
+}
+
+interface PaginatedNotifications {
+  items: Notification[];
+  total: number;
+  page: number;
+  limit: number;
+  unreadCount: number;
 }
 
 function timeAgo(dateStr: string): string {
@@ -64,10 +73,10 @@ export default function NotificationsPage() {
   const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
-    apiFetch<Notification[]>('/notifications')
+    apiFetch<PaginatedNotifications>('/notifications?limit=100')
       .then((data) => {
-        const sorted = [...data].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        const sorted = [...data.items].sort(
+          (a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()
         );
         setNotifications(sorted);
       })
@@ -75,13 +84,13 @@ export default function NotificationsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleClickNotification(id: string) {
+  async function handleClickNotification(id: number) {
     const notification = notifications.find((n) => n.id === id);
-    if (!notification || notification.read) return;
+    if (!notification || notification.isRead) return;
     try {
       await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
     } catch {
       // ignore
@@ -92,7 +101,7 @@ export default function NotificationsPage() {
     setMarkingAll(true);
     try {
       await apiFetch('/notifications/read-all', { method: 'PATCH' });
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to mark all read');
     } finally {
@@ -100,7 +109,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
     <div className="px-6 py-8 max-w-4xl mx-auto">
@@ -151,34 +160,38 @@ export default function NotificationsPage() {
       {!loading && !error && notifications.length > 0 && (
         <div className="flex flex-col gap-0.5 rounded-lg border border-zinc-800 overflow-hidden">
           {notifications.map((notification) => {
+            const link = notification.referenceType && notification.referenceId
+              ? `/${notification.referenceType}s/${notification.referenceId}`
+              : undefined;
+
             const row = (
               <div
                 onClick={() => handleClickNotification(notification.id)}
                 className={`flex items-start gap-3 px-4 py-3.5 cursor-pointer transition-colors hover:bg-zinc-800 ${
-                  notification.read ? 'bg-zinc-950' : 'bg-zinc-900'
+                  notification.isRead ? 'bg-zinc-950' : 'bg-zinc-900'
                 }`}
               >
-                <div className={`mt-0.5 ${notification.read ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                <div className={`mt-0.5 ${notification.isRead ? 'text-zinc-600' : 'text-zinc-400'}`}>
                   <NotificationIcon type={notification.type} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className={`text-sm leading-snug ${notification.read ? 'text-zinc-400' : 'font-medium text-white'}`}>
-                      {notification.title}
+                    <p className={`text-sm leading-snug ${notification.isRead ? 'text-zinc-400' : 'font-medium text-white'}`}>
+                      {notification.title ?? 'Notification'}
                     </p>
-                    <span className="shrink-0 text-xs text-zinc-600">{timeAgo(notification.createdAt)}</span>
+                    <span className="shrink-0 text-xs text-zinc-600">{timeAgo(notification.sentAt)}</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-500 leading-snug">{notification.message}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500 leading-snug">{notification.message ?? ''}</p>
                 </div>
-                {!notification.read && (
+                {!notification.isRead && (
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
                 )}
               </div>
             );
 
-            if (notification.link) {
+            if (link) {
               return (
-                <Link key={notification.id} href={notification.link} className="block border-b border-zinc-800 last:border-b-0">
+                <Link key={notification.id} href={link} className="block border-b border-zinc-800 last:border-b-0">
                   {row}
                 </Link>
               );
