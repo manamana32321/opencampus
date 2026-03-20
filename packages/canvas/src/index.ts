@@ -1,3 +1,3 @@
 export { CanvasClient } from './client';
-export { LearningXClient } from './learningx';
+export { LearningXClient, LearningXError } from './learningx';
 export * from './types';

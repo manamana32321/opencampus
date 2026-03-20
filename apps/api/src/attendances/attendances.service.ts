@@ -1,9 +1,11 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { LearningXClient } from '@opencampus/canvas';
+import { LearningXClient, LearningXError } from '@opencampus/canvas';
 
 @Injectable()
 export class AttendancesService {
+  private readonly logger = new Logger(AttendancesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async findByCourse(userId: number, courseId: number, page = 1, limit = 20) {
@@ -98,14 +100,27 @@ export class AttendancesService {
       let items;
       try {
         items = await learningx.getAttendanceItems(course.canvasId!);
-      } catch {
-        // Course may not have LearningX data; skip silently
+      } catch (err) {
+        // 401 → xn_api_token mismatch; skip silently (user may need to
+        // manually obtain a separate LearningX token later).
+        if (err instanceof LearningXError && err.status === 401) {
+          this.logger.debug(
+            `LearningX 401 for course ${course.name} — skipping`,
+          );
+          continue;
+        }
+        // Other errors (network, 5xx, etc.) — skip this course, log warning
+        this.logger.warn(
+          `LearningX fetch failed for course ${course.name}: ${err instanceof Error ? err.message : err}`,
+        );
         continue;
       }
 
-      const attendanceItems = items.filter((item) => item.required);
+      for (const item of items) {
+        // Map LearningX attendance_status to our status values
+        const mappedStatus = this.mapAttendanceStatus(item.status);
+        if (!mappedStatus) continue; // unknown status → skip
 
-      for (const item of attendanceItems) {
         const canvasItemId =
           typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
         if (isNaN(canvasItemId)) continue;
@@ -120,13 +135,11 @@ export class AttendancesService {
         // Never overwrite manual records
         if (existing?.source === 'manual') continue;
 
-        const status = item.status ?? (item.completedAt ? 'present' : 'absent');
-
         if (existing) {
           await this.prisma.attendance.update({
             where: { id: existing.id },
             data: {
-              status,
+              status: mappedStatus,
               syncedAt: new Date(),
             },
           });
@@ -137,7 +150,7 @@ export class AttendancesService {
               courseId: course.id,
               week,
               session: null,
-              status,
+              status: mappedStatus,
               source: 'canvas_sync',
               canvasItemId,
               syncedAt: new Date(),
@@ -149,6 +162,24 @@ export class AttendancesService {
     }
 
     return { synced };
+  }
+
+  /**
+   * Maps LearningX attendance_status values to our internal status.
+   * Returns null for unrecognised values (caller should skip the item).
+   */
+  private mapAttendanceStatus(raw: string | null): string | null {
+    switch (raw) {
+      case 'attendance':
+      case 'present':
+        return 'present';
+      case 'late':
+        return 'late';
+      case 'absent':
+        return 'absent';
+      default:
+        return null;
+    }
   }
 
   private deriveWeek(title: string): number | null {
