@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 
 interface Announcement {
@@ -25,6 +26,7 @@ interface PaginatedResponse<T> {
 interface Course {
   id: number;
   name: string;
+  semester?: { id: number; name: string };
 }
 
 function timeAgo(dateStr: string): string {
@@ -48,12 +50,23 @@ function formatAbsoluteDate(dateStr: string): string {
 }
 
 export default function AnnouncementsPage() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  return (
+    <Suspense fallback={<div className="px-6 py-8"><div className="h-8 w-32 bg-zinc-800 rounded animate-pulse" /></div>}>
+      <AnnouncementsContent />
+    </Suspense>
+  );
+}
+
+function AnnouncementsContent() {
+  const [allAnnouncements, setAllAnnouncements] = useState<Announcement[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [courseMap, setCourseMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  const semesterFilter = searchParams.get('semester');
 
   useEffect(() => {
     Promise.all([
@@ -64,6 +77,7 @@ export default function AnnouncementsPage() {
         const map: Record<number, string> = {};
         for (const c of courses) map[c.id] = c.name;
         setCourseMap(map);
+        setAllCourses(courses);
         const sorted = [...data.items].sort(
           (a, b) => {
             const aTime = a.postedAt ? new Date(a.postedAt).getTime() : 0;
@@ -71,11 +85,19 @@ export default function AnnouncementsPage() {
             return bTime - aTime;
           }
         );
-        setAnnouncements(sorted);
+        setAllAnnouncements(sorted);
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  // Filter announcements by semester
+  const semesterCourseIds = semesterFilter
+    ? new Set(allCourses.filter((c) => c.semester?.name === semesterFilter).map((c) => c.id))
+    : null;
+  const announcements = semesterCourseIds
+    ? allAnnouncements.filter((a) => semesterCourseIds.has(a.courseId))
+    : allAnnouncements;
 
   async function handleClick(id: number) {
     const announcement = announcements.find((a) => a.id === id);
@@ -91,7 +113,7 @@ export default function AnnouncementsPage() {
     if (!announcement.isRead) {
       try {
         await apiFetch(`/announcements/${id}/read`, { method: 'PATCH' });
-        setAnnouncements((prev) =>
+        setAllAnnouncements((prev) =>
           prev.map((a) => (a.id === id ? { ...a, isRead: true } : a))
         );
       } catch {
@@ -112,7 +134,7 @@ export default function AnnouncementsPage() {
           return bTime - aTime;
         }
       );
-      setAnnouncements(sorted);
+      setAllAnnouncements(sorted);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Sync failed');
     } finally {
@@ -130,7 +152,7 @@ export default function AnnouncementsPage() {
           disabled={syncing}
           className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {syncing ? 'Syncing…' : 'Sync from Canvas'}
+          {syncing ? 'Syncing...' : 'Sync from Canvas'}
         </button>
       </div>
 

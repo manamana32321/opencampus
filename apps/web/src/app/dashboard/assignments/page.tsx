@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 
 interface Assignment {
@@ -29,6 +30,7 @@ interface PaginatedResponse<T> {
 interface Course {
   id: number;
   name: string;
+  semester?: { id: number; name: string };
 }
 
 function timeAgo(dateStr: string): string {
@@ -71,11 +73,22 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function AssignmentsPage() {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  return (
+    <Suspense fallback={<div className="px-6 py-8"><div className="h-8 w-32 bg-zinc-800 rounded animate-pulse" /></div>}>
+      <AssignmentsContent />
+    </Suspense>
+  );
+}
+
+function AssignmentsContent() {
+  const [allAssignments, setAllAssignments] = useState<Assignment[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [courseMap, setCourseMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const searchParams = useSearchParams();
+  const semesterFilter = searchParams.get('semester');
 
   useEffect(() => {
     Promise.all([
@@ -86,16 +99,25 @@ export default function AssignmentsPage() {
         const map: Record<number, string> = {};
         for (const c of courses) map[c.id] = c.name;
         setCourseMap(map);
+        setAllCourses(courses);
         const sorted = [...data.items].sort((a, b) => {
           if (!a.dueAt) return 1;
           if (!b.dueAt) return -1;
           return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
         });
-        setAssignments(sorted);
+        setAllAssignments(sorted);
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  // Filter assignments by semester
+  const semesterCourseIds = semesterFilter
+    ? new Set(allCourses.filter((c) => c.semester?.name === semesterFilter).map((c) => c.id))
+    : null;
+  const assignments = semesterCourseIds
+    ? allAssignments.filter((a) => semesterCourseIds.has(a.courseId))
+    : allAssignments;
 
   async function handleSync() {
     setSyncing(true);
@@ -107,7 +129,7 @@ export default function AssignmentsPage() {
         if (!b.dueAt) return -1;
         return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
       });
-      setAssignments(sorted);
+      setAllAssignments(sorted);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Sync failed');
     } finally {
@@ -125,7 +147,7 @@ export default function AssignmentsPage() {
           disabled={syncing}
           className="rounded-md bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {syncing ? 'Syncing…' : 'Sync from Canvas'}
+          {syncing ? 'Syncing...' : 'Sync from Canvas'}
         </button>
       </div>
 

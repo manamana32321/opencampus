@@ -1,7 +1,7 @@
-import Link from 'next/link';
 import { Suspense } from 'react';
 import { NotificationBell } from '@/components/notification-bell';
 import { SemesterSelect } from '@/components/semester-select';
+import { NavLinks } from '@/components/nav-links';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -29,17 +29,13 @@ export default function DashboardLayout({
             <SemesterSelect />
           </Suspense>
         </div>
-        <nav className="flex flex-col gap-1 px-3 py-2">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <Suspense>
+          <NavLinks
+            links={navLinks}
+            className="flex flex-col gap-1 px-3 py-2"
+            linkClassName="rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+          />
+        </Suspense>
       </aside>
 
       {/* Mobile top bar */}
@@ -47,17 +43,13 @@ export default function DashboardLayout({
         <span className="text-sm font-semibold">OpenCampus</span>
         <div className="flex items-center gap-2">
           <NotificationBell />
-          <nav className="flex gap-3">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-xs text-zinc-400 hover:text-white transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          <Suspense>
+            <NavLinks
+              links={navLinks}
+              className="flex gap-3"
+              linkClassName="text-xs text-zinc-400 hover:text-white transition-colors"
+            />
+          </Suspense>
         </div>
       </div>
 
