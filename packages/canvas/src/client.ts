@@ -235,8 +235,9 @@ export class CanvasClient {
         `/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions`,
       );
     }
-    return this.requestAll<Submission>(`/api/v1/courses/${courseId}/submissions`, {
+    return this.requestAll<Submission>(`/api/v1/courses/${courseId}/students/submissions`, {
       include: ['assignment'],
+      student_ids: ['all'],
     });
   }
 

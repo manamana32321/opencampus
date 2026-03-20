@@ -1,17 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { WeeksService } from '../weeks/weeks.service.js';
 import { InferenceService } from '../inference/inference.service.js';
+import { JobsService } from '../jobs/jobs.service.js';
+import { ProcessorRegistry } from '../processors/processors.module.js';
 import { randomUUID } from 'crypto';
 
 @Injectable()
 export class MaterialsService {
+  private readonly logger = new Logger(MaterialsService.name);
+
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
     private weeks: WeeksService,
     private inference: InferenceService,
+    private jobs: JobsService,
+    private processors: ProcessorRegistry,
   ) {}
 
   async findAll(
@@ -121,6 +127,17 @@ export class MaterialsService {
       include: { courseWeek: { include: { course: true } } },
     });
 
+    // 6. Create processing job (if processor exists for this type)
+    const jobType = this.processors.getJobType(material.type);
+    const processor = this.processors.getProcessor(material.type);
+    if (jobType && processor) {
+      const job = await this.jobs.create(userId, material.id, jobType);
+      // Run processor asynchronously (don't block upload response)
+      this.runProcessor(processor, job.id, material.id).catch((err) =>
+        this.logger.error(`Processor failed for material ${material.id}: ${err}`),
+      );
+    }
+
     return { material, inference };
   }
 
@@ -199,6 +216,22 @@ export class MaterialsService {
         originalFilename: file.originalname,
       },
     });
+  }
+
+  private async runProcessor(
+    processor: { process(materialId: number, onProgress: (pct: number) => void): Promise<void> },
+    jobId: number,
+    materialId: number,
+  ) {
+    try {
+      await this.jobs.updateProgress(jobId, 0);
+      await processor.process(materialId, async (pct: number) => {
+        await this.jobs.updateProgress(jobId, pct);
+      });
+      await this.jobs.complete(jobId);
+    } catch (err: any) {
+      await this.jobs.fail(jobId, err?.message ?? 'Unknown error');
+    }
   }
 
   async reAnalyze(id: number, userId: number) {

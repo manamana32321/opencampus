@@ -44,65 +44,71 @@ export class AssignmentsService {
 
     let synced = 0;
 
+    const errors: string[] = [];
+
     for (const course of courses) {
       const canvasCourseId = course.canvasId!;
-      const [assignments, submissions] = await Promise.all([
-        canvas.getAssignments(canvasCourseId),
-        canvas.getSubmissions(canvasCourseId),
-      ]);
+      try {
+        const [assignments, submissions] = await Promise.all([
+          canvas.getAssignments(canvasCourseId),
+          canvas.getSubmissions(canvasCourseId),
+        ]);
 
-      const submissionMap = new Map(submissions.map((s) => [s.assignmentId, s]));
+        const submissionMap = new Map(submissions.map((s) => [s.assignmentId, s]));
 
-      for (const ca of assignments) {
-        const submission = submissionMap.get(ca.id);
-        const status = this.deriveStatus(ca, submission);
+        for (const ca of assignments) {
+          const submission = submissionMap.get(ca.id);
+          const status = this.deriveStatus(ca, submission);
 
-        const existing = await this.prisma.assignment.findFirst({
-          where: { userId, canvasId: ca.id },
-        });
-
-        if (existing) {
-          await this.prisma.assignment.update({
-            where: { id: existing.id },
-            data: {
-              title: ca.name,
-              dueAt: ca.dueAt ? new Date(ca.dueAt) : null,
-              pointsPossible: ca.pointsPossible,
-              submissionTypes: ca.submissionTypes,
-              canvasUrl: ca.htmlUrl,
-              status,
-              score: submission?.score ?? existing.score,
-              grade: submission?.grade ?? existing.grade,
-              submittedAt: submission?.submittedAt
-                ? new Date(submission.submittedAt)
-                : existing.submittedAt,
-              syncedAt: new Date(),
-            },
+          const existing = await this.prisma.assignment.findFirst({
+            where: { userId, canvasId: ca.id },
           });
-        } else {
-          await this.prisma.assignment.create({
-            data: {
-              userId,
-              courseId: course.id,
-              canvasId: ca.id,
-              title: ca.name,
-              dueAt: ca.dueAt ? new Date(ca.dueAt) : null,
-              pointsPossible: ca.pointsPossible,
-              submissionTypes: ca.submissionTypes,
-              canvasUrl: ca.htmlUrl,
-              status,
-              score: submission?.score ?? null,
-              grade: submission?.grade ?? null,
-              submittedAt: submission?.submittedAt ? new Date(submission.submittedAt) : null,
-              syncedAt: new Date(),
-            },
-          });
+
+          if (existing) {
+            await this.prisma.assignment.update({
+              where: { id: existing.id },
+              data: {
+                title: ca.name,
+                dueAt: ca.dueAt ? new Date(ca.dueAt) : null,
+                pointsPossible: ca.pointsPossible,
+                submissionTypes: ca.submissionTypes,
+                canvasUrl: ca.htmlUrl,
+                status,
+                score: submission?.score ?? existing.score,
+                grade: submission?.grade ?? existing.grade,
+                submittedAt: submission?.submittedAt
+                  ? new Date(submission.submittedAt)
+                  : existing.submittedAt,
+                syncedAt: new Date(),
+              },
+            });
+          } else {
+            await this.prisma.assignment.create({
+              data: {
+                userId,
+                courseId: course.id,
+                canvasId: ca.id,
+                title: ca.name,
+                dueAt: ca.dueAt ? new Date(ca.dueAt) : null,
+                pointsPossible: ca.pointsPossible,
+                submissionTypes: ca.submissionTypes,
+                canvasUrl: ca.htmlUrl,
+                status,
+                score: submission?.score ?? null,
+                grade: submission?.grade ?? null,
+                submittedAt: submission?.submittedAt ? new Date(submission.submittedAt) : null,
+                syncedAt: new Date(),
+              },
+            });
+          }
+          synced++;
         }
-        synced++;
+      } catch {
+        errors.push(course.name);
       }
     }
 
-    return { synced };
+    return { synced, errors };
   }
 
   private deriveStatus(

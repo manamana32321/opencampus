@@ -40,10 +40,17 @@ export class SttProcessor {
       fs.writeFileSync(tmpPath, buffer);
       onProgress(20);
 
-      // Extract audio if video
+      // Extract audio if video, or compress if file > 24MB (Whisper limit is 25MB)
       let audioPath = tmpPath;
+      const fileSize = fs.statSync(tmpPath).size;
+      const WHISPER_LIMIT = 24 * 1024 * 1024; // 24MB to be safe
+
       if (material.type === 'video') {
         audioPath = path.join(tmpDir, 'audio.mp3');
+        await this.extractAudio(tmpPath, audioPath);
+        onProgress(40);
+      } else if (fileSize > WHISPER_LIMIT) {
+        audioPath = path.join(tmpDir, 'compressed.mp3');
         await this.extractAudio(tmpPath, audioPath);
         onProgress(40);
       } else {
