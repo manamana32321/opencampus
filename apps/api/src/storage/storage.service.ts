@@ -76,6 +76,23 @@ export class StorageService implements OnModuleInit {
     return getSignedUrl(this.client, command, { expiresIn });
   }
 
+  async getPresignedPutUrl(
+    key: string,
+    contentType: string,
+    expiresIn = 300,
+  ): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+    });
+    return getSignedUrl(this.client, command, { expiresIn });
+  }
+
+  buildFilePath(key: string): string {
+    return `s3://${this.bucket}/${key}`;
+  }
+
   extractKey(filePath: string): string {
     // Parse key from s3://bucket/key format
     const prefix = `s3://${this.bucket}/`;

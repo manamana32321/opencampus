@@ -78,6 +78,75 @@ export class MaterialsService {
     return material;
   }
 
+  async presign(userId: number, filename: string, contentType: string) {
+    const ext = filename.split('.').pop() ?? 'bin';
+    const uuid = randomUUID().slice(0, 8);
+    const key = `materials/pending/${uuid}.${ext}`;
+    const uploadUrl = await this.storage.getPresignedPutUrl(key, contentType);
+    return { uploadUrl, key };
+  }
+
+  async confirm(userId: number, key: string, filename: string, contentType: string) {
+    // 1. Run inference
+    const inference = await this.inference.infer(userId, filename);
+
+    // 2. Move to organized path if inference resolved
+    // (For now, keep the pending key — moving in S3/MinIO requires copy+delete)
+    const filePath = this.storage.buildFilePath(key);
+
+    // 3. Get or create course_week
+    let courseWeekId: number | null = null;
+    if (inference.courseId && inference.week) {
+      const courseWeek = await this.weeks.getOrCreate(
+        inference.courseId,
+        userId,
+        inference.week,
+      );
+      courseWeekId = courseWeek.id;
+    }
+
+    if (!courseWeekId) {
+      const courses = await this.prisma.course.findMany({
+        where: { userId },
+        take: 1,
+      });
+      if (courses.length > 0) {
+        const cw = await this.weeks.getOrCreate(courses[0].id, userId, 0);
+        courseWeekId = cw.id;
+      }
+    }
+
+    // 4. Create material record
+    const material = await this.prisma.material.create({
+      data: {
+        userId,
+        courseWeekId: courseWeekId!,
+        type: inference.type ?? 'unknown',
+        session: inference.session,
+        filePath,
+        originalFilename: filename,
+        aiConfidence: inference.confidence,
+        partNumber: inference.partNumber ?? 1,
+        groupId: inference.partNumber ? randomUUID() : null,
+      },
+      include: { courseWeek: { include: { course: true } } },
+    });
+
+    // 5. Create processing job
+    const jobType = this.processors.getJobType(material.type);
+    const processor = this.processors.getProcessor(material.type);
+    if (jobType && processor) {
+      const job = await this.jobs.create(userId, material.id, jobType);
+      this.runProcessor(processor, job.id, material.id).catch((err) =>
+        this.logger.error(
+          `Processor failed for material ${material.id}: ${err}`,
+        ),
+      );
+    }
+
+    return { material, inference };
+  }
+
   async upload(userId: number, file: Express.Multer.File) {
     // Multer decodes filenames as latin1; re-encode to recover UTF-8 (e.g. Korean)
     const originalFilename = Buffer.from(

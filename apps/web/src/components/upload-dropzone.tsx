@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { apiUpload } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 interface CourseWeekWithCourse {
   id: number;
@@ -151,14 +151,41 @@ export default function UploadDropzone({ onUploadSuccess }: UploadDropzoneProps)
     [handleFile],
   );
 
+  const [progress, setProgress] = useState(0);
+
   const handleUpload = async () => {
     if (!file) return;
     setUploading(true);
+    setProgress(0);
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const result = await apiUpload<UploadResult>('/materials/upload', formData);
+      // 1. Get presigned PUT URL
+      const { uploadUrl, key } = await apiFetch<{ uploadUrl: string; key: string }>(
+        '/materials/presign',
+        {
+          method: 'POST',
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        },
+      );
+
+      // 2. Upload directly to MinIO with progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
+        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.send(file);
+      });
+
+      // 3. Confirm upload + trigger inference/processing
+      const result = await apiFetch<UploadResult>('/materials/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ key, filename: file.name, contentType: file.type }),
+      });
       onUploadSuccess(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -236,6 +263,21 @@ export default function UploadDropzone({ onUploadSuccess }: UploadDropzoneProps)
               </svg>
             </button>
           </div>
+
+          {uploading && progress > 0 && (
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                <span>Uploading to storage...</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="mt-4 flex justify-end">
             <button

@@ -56,6 +56,22 @@ export class MaterialsController {
     return this.materials.upload(req.user.userId, file);
   }
 
+  @Post('presign')
+  presign(
+    @Req() req: AuthRequest,
+    @Body() body: { filename: string; contentType: string },
+  ) {
+    return this.materials.presign(req.user.userId, body.filename, body.contentType);
+  }
+
+  @Post('confirm')
+  confirm(
+    @Req() req: AuthRequest,
+    @Body() body: { key: string; filename: string; contentType: string },
+  ) {
+    return this.materials.confirm(req.user.userId, body.key, body.filename, body.contentType);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.materials.findById(id, req.user.userId);
