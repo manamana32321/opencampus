@@ -67,9 +67,9 @@ export class MaterialsController {
   @Post('confirm')
   confirm(
     @Req() req: AuthRequest,
-    @Body() body: { key: string; filename: string; contentType: string },
+    @Body() body: { key: string; filename: string },
   ) {
-    return this.materials.confirm(req.user.userId, body.key, body.filename, body.contentType);
+    return this.materials.confirm(req.user.userId, body.key, body.filename);
   }
 
   @Get(':id')

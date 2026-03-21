@@ -86,7 +86,7 @@ export class MaterialsService {
     return { uploadUrl, key };
   }
 
-  async confirm(userId: number, key: string, filename: string, contentType: string) {
+  async confirm(userId: number, key: string, filename: string) {
     // 1. Run inference
     const inference = await this.inference.infer(userId, filename);
 

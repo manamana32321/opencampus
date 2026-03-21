@@ -184,7 +184,7 @@ export default function UploadDropzone({ onUploadSuccess }: UploadDropzoneProps)
       // 3. Confirm upload + trigger inference/processing
       const result = await apiFetch<UploadResult>('/materials/confirm', {
         method: 'POST',
-        body: JSON.stringify({ key, filename: file.name, contentType: file.type }),
+        body: JSON.stringify({ key, filename: file.name }),
       });
       onUploadSuccess(result);
     } catch (err) {
