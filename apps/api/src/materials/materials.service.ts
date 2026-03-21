@@ -323,11 +323,15 @@ export class MaterialsService {
     jobId: number,
     materialId: number,
   ) {
+    // Track the last progress update to avoid race condition between
+    // fire-and-forget onProgress(100) and the subsequent complete() call
+    let lastProgressPromise: Promise<unknown> = Promise.resolve();
     try {
       await this.jobs.updateProgress(jobId, 0);
       await processor.process(materialId, (pct: number) => {
-        void this.jobs.updateProgress(jobId, pct);
+        lastProgressPromise = this.jobs.updateProgress(jobId, pct);
       });
+      await lastProgressPromise;
       await this.jobs.complete(jobId);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';

@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LearningXClient, LearningXError } from '@opencampus/canvas';
+import type { AttendanceItem } from '@opencampus/canvas';
 
 @Injectable()
 export class AttendancesService {
@@ -90,19 +91,38 @@ export class AttendancesService {
       accessToken: user.canvasAccessToken,
     });
 
+    // Fetch Canvas user profile to get numeric userId and studentId (loginId)
+    // needed by the allcomponents_db endpoint.
+    let canvasUserId: number | undefined;
+    let canvasUserLogin: string | undefined;
+    try {
+      const profile = await learningx.getUserProfile();
+      canvasUserId = profile.id;
+      canvasUserLogin = profile.loginId;
+    } catch (err) {
+      this.logger.warn(
+        `Failed to fetch Canvas user profile: ${err instanceof Error ? err.message : err}`,
+      );
+      // Continue without user params — the endpoint may still return partial data
+    }
+
     const courses = await this.prisma.course.findMany({
       where: { userId, canvasId: { not: null } },
     });
 
     let synced = 0;
+    let skipped = 0;
 
     for (const course of courses) {
-      let items;
+      let items: AttendanceItem[];
       try {
-        items = await learningx.getAttendanceItems(course.canvasId!);
+        const userParams =
+          canvasUserId !== undefined && canvasUserLogin
+            ? { userId: canvasUserId, userLogin: canvasUserLogin }
+            : undefined;
+        items = await learningx.getAttendanceItems(course.canvasId!, userParams);
       } catch (err) {
-        // 401 → xn_api_token mismatch; skip silently (user may need to
-        // manually obtain a separate LearningX token later).
+        // 401 → token mismatch or expired; skip silently
         if (err instanceof LearningXError && err.status === 401) {
           this.logger.debug(
             `LearningX 401 for course ${course.name} — skipping`,
@@ -117,23 +137,30 @@ export class AttendancesService {
       }
 
       for (const item of items) {
-        // Map LearningX attendance_status to our status values
-        const mappedStatus = this.mapAttendanceStatus(item.status);
-        if (!mappedStatus) continue; // unknown status → skip
+        // Only process items that track attendance (video lectures)
+        if (!item.useAttendance) continue;
 
-        const canvasItemId =
-          typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
-        if (isNaN(canvasItemId)) continue;
+        const canvasItemId = this.parseItemId(item.id);
+        if (canvasItemId === null) continue;
 
-        // Derive week from title or use sequential index — fall back to 1
+        // Map LearningX attendance_status to our status values.
+        // "attendance" = student watched the video → present
+        // anything else (null, etc.) = not watched → absent
+        const mappedStatus = this.mapAttendanceStatus(item.attendanceStatus);
+
+        // Derive week number from the item title (e.g. "1주차 강의" → 1)
         const week = this.deriveWeek(item.title) ?? 1;
+        const session = this.deriveSession(item.title);
 
         const existing = await this.prisma.attendance.findFirst({
           where: { userId, courseId: course.id, canvasItemId },
         });
 
         // Never overwrite manual records
-        if (existing?.source === 'manual') continue;
+        if (existing?.source === 'manual') {
+          skipped++;
+          continue;
+        }
 
         if (existing) {
           await this.prisma.attendance.update({
@@ -149,7 +176,7 @@ export class AttendancesService {
               userId,
               courseId: course.id,
               week,
-              session: null,
+              session,
               status: mappedStatus,
               source: 'canvas_sync',
               canvasItemId,
@@ -161,29 +188,76 @@ export class AttendancesService {
       }
     }
 
-    return { synced };
+    return { synced, skipped };
   }
 
   /**
    * Maps LearningX attendance_status values to our internal status.
-   * Returns null for unrecognised values (caller should skip the item).
+   *
+   * The LearningX API uses "attendance" to mean the student watched the video.
+   * All other values (null, empty, "absence") indicate the student has not
+   * completed the lecture.
    */
-  private mapAttendanceStatus(raw: string | null): string | null {
+  private mapAttendanceStatus(raw: string | null): string {
     switch (raw) {
       case 'attendance':
-      case 'present':
         return 'present';
       case 'late':
         return 'late';
-      case 'absent':
+      case 'absence':
         return 'absent';
       default:
-        return null;
+        // null or unrecognised → treat as absent (lecture not watched)
+        return 'absent';
     }
   }
 
+  /**
+   * Extracts a week number from the item title.
+   * Matches patterns like "1주차", "2주차", "Week 1", "Week 2".
+   * Falls back to the first bare number in the title if no pattern matches.
+   */
   private deriveWeek(title: string): number | null {
-    const match = title.match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : null;
+    // "1주차", "01주차"
+    const weekKr = title.match(/(\d+)\s*주차/);
+    if (weekKr) return parseInt(weekKr[1], 10);
+
+    // "Week 1", "week 2"
+    const weekEn = title.match(/[Ww]eek\s*(\d+)/);
+    if (weekEn) return parseInt(weekEn[1], 10);
+
+    // Fallback: first number in the title
+    const firstNum = title.match(/(\d+)/);
+    return firstNum ? parseInt(firstNum[1], 10) : null;
+  }
+
+  /**
+   * Extracts a session number from the item title.
+   * Matches patterns like "1교시", "2차시", "Session 1", or a trailing
+   * parenthetical number like "(2)".
+   */
+  private deriveSession(title: string): number | null {
+    // "1교시", "2차시"
+    const sessionKr = title.match(/(\d+)\s*(?:교시|차시)/);
+    if (sessionKr) return parseInt(sessionKr[1], 10);
+
+    // "Session 1"
+    const sessionEn = title.match(/[Ss]ession\s*(\d+)/);
+    if (sessionEn) return parseInt(sessionEn[1], 10);
+
+    // "(2)" at the end — commonly used for multi-part lectures
+    const paren = title.match(/\((\d+)\)\s*$/);
+    if (paren) return parseInt(paren[1], 10);
+
+    return null;
+  }
+
+  /**
+   * Parses the item ID from the API response, which can be a number or string.
+   * Returns null for invalid/unparseable values.
+   */
+  private parseItemId(id: number | string): number | null {
+    const num = typeof id === 'string' ? parseInt(id, 10) : id;
+    return isNaN(num) ? null : num;
   }
 }

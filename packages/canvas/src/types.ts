@@ -666,17 +666,44 @@ export interface ActivitySummary {
 
 // ── LearningX (SKKU-specific) ────────────────────────────────
 
+/**
+ * A single component item from the LearningX allcomponents_db endpoint.
+ *
+ * Key fields for attendance logic:
+ * - `useAttendance`: true when the item is a video lecture that counts toward attendance.
+ * - `attendanceStatus`: `"attendance"` means the student watched the video (present).
+ *    null / absent string means the student has NOT completed it.
+ * - `completed`: generic completion flag (used for assignments, not lectures).
+ * - `type`: `"movie"` | `"assignment"` | `"discussion"` | `"quiz"` | etc.
+ */
 export interface AttendanceItem {
   id: number | string;
   courseId: number | string;
   title: string;
+  /** Component type: "movie", "assignment", "discussion", "quiz", etc. */
   type: string;
+  /** Generic status field */
   status: string | null;
+  /** LearningX attendance status — "attendance" = watched/present, null = not watched */
+  attendanceStatus: string | null;
+  /** Whether this item tracks attendance (video lectures) */
+  useAttendance: boolean;
+  /** Whether the item is marked as completed */
+  completed: boolean;
   dueAt: string | null;
+  unlockAt: string | null;
   completedAt: string | null;
   progress: number | null;
   required: boolean;
   url: string | null;
+}
+
+/** Params required by the allcomponents_db endpoint */
+export interface LearningXUserParams {
+  /** Canvas user numeric ID (from course enrollment) */
+  userId: number;
+  /** Student login ID (e.g. "2024310000") */
+  userLogin: string;
 }
 
 export interface VideoUrl {

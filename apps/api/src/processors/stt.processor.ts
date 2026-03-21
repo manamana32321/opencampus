@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { ConfigService } from '@nestjs/config';
@@ -7,8 +7,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+const WHISPER_LIMIT = 24 * 1024 * 1024; // 24MB to be safe (API limit is 25MB)
+
 @Injectable()
 export class SttProcessor {
+  private readonly logger = new Logger(SttProcessor.name);
   private openai: OpenAI;
 
   constructor(
@@ -43,15 +46,40 @@ export class SttProcessor {
       // Extract audio if video, or compress if file > 24MB (Whisper limit is 25MB)
       let audioPath = tmpPath;
       const fileSize = fs.statSync(tmpPath).size;
-      const WHISPER_LIMIT = 24 * 1024 * 1024; // 24MB to be safe
 
-      if (material.type === 'video') {
-        audioPath = path.join(tmpDir, 'audio.mp3');
-        await this.extractAudio(tmpPath, audioPath);
-        onProgress(40);
-      } else if (fileSize > WHISPER_LIMIT) {
+      if (material.type === 'video' || fileSize > WHISPER_LIMIT) {
         audioPath = path.join(tmpDir, 'compressed.mp3');
-        await this.extractAudio(tmpPath, audioPath);
+        // Estimate duration from file size. Most audio files are 128-320kbps.
+        // Use conservative estimate (assume 128kbps) to avoid over-compression.
+        // durationSec ~ fileSize / (avgBitrate / 8)
+        const estimatedDurationSec = fileSize / (128_000 / 8);
+        // Actual duration may differ; apply 2x safety factor
+        const safeDurationSec = estimatedDurationSec * 2;
+        // Target: fit under WHISPER_LIMIT with 10% safety margin
+        const targetBytes = WHISPER_LIMIT * 0.9;
+        // bitrate in kbps = targetBytes * 8 / durationSec / 1000
+        const targetBitrate = Math.floor(
+          (targetBytes * 8) / safeDurationSec / 1000,
+        );
+        // Clamp between 32 and 128 kbps (below 32 quality degrades for speech)
+        const bitrate = Math.max(32, Math.min(128, targetBitrate));
+        this.logger.log(
+          `Compressing audio: estimatedDuration=${Math.round(estimatedDurationSec)}s, ` +
+            `inputSize=${Math.round(fileSize / 1024 / 1024)}MB, bitrate=${bitrate}kbps`,
+        );
+        await this.extractAudio(tmpPath, audioPath, bitrate);
+
+        // Verify output is under limit
+        const compressedSize = fs.statSync(audioPath).size;
+        this.logger.log(
+          `Compressed to ${Math.round(compressedSize / 1024 / 1024)}MB`,
+        );
+        if (compressedSize > WHISPER_LIMIT) {
+          throw new Error(
+            `Compressed audio (${Math.round(compressedSize / 1024 / 1024)}MB) ` +
+              `still exceeds Whisper limit (${Math.round(WHISPER_LIMIT / 1024 / 1024)}MB)`,
+          );
+        }
         onProgress(40);
       } else {
         onProgress(40);
@@ -75,7 +103,11 @@ export class SttProcessor {
     }
   }
 
-  private extractAudio(inputPath: string, outputPath: string): Promise<void> {
+  private extractAudio(
+    inputPath: string,
+    outputPath: string,
+    bitrate = 128,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const ffmpeg = require('fluent-ffmpeg') as (
@@ -84,30 +116,30 @@ export class SttProcessor {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const ffmpegStatic = require('ffmpeg-static') as string;
 
-      interface FfmpegCommand {
-        noVideo(): FfmpegCommand;
-        audioCodec(codec: string): FfmpegCommand;
-        audioBitrate(bitrate: number): FfmpegCommand;
-        output(path: string): FfmpegCommand;
-        on(event: 'end', cb: () => void): FfmpegCommand;
-        on(event: 'error', cb: (err: Error) => void): FfmpegCommand;
-        run(): void;
-      }
-
-      interface FfmpegStatic {
-        setFfmpegPath(path: string): void;
-      }
-
-      (ffmpeg as unknown as FfmpegStatic).setFfmpegPath(ffmpegStatic);
+      (ffmpeg as unknown as FfmpegModule).setFfmpegPath(ffmpegStatic);
 
       ffmpeg(inputPath)
         .noVideo()
         .audioCodec('libmp3lame')
-        .audioBitrate(128)
+        .audioBitrate(bitrate)
         .output(outputPath)
         .on('end', resolve)
         .on('error', reject)
         .run();
     });
   }
+}
+
+interface FfmpegCommand {
+  noVideo(): FfmpegCommand;
+  audioCodec(codec: string): FfmpegCommand;
+  audioBitrate(bitrate: number): FfmpegCommand;
+  output(path: string): FfmpegCommand;
+  on(event: 'end', cb: () => void): FfmpegCommand;
+  on(event: 'error', cb: (err: Error) => void): FfmpegCommand;
+  run(): void;
+}
+
+interface FfmpegModule {
+  setFfmpegPath(path: string): void;
 }
